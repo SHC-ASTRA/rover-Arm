@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"name": "arm_main",
+			"path": ".."
+		},
+		{
+			"name": "embedded_main",
+			"path": "../../embedded_main"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"string": "cpp"
+		}
+	}
+}
