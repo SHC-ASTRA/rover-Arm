@@ -5,12 +5,14 @@
 #include <cmath>
 #include <cstdlib>
 #include <utility/imumaths.h>
+#include <AS5047P.h> 
 // Our own resources
 #include "AstraMotors.h"
 //#include "AstraCAN.h"
 //#include "AstraSensors.h"
 #include "TeensyThreads.h"
 #include "AstraSubroutines.h"
+
 
 
 using namespace std;
@@ -22,10 +24,18 @@ using namespace std;
 #define BMP_MOSI 11
 #define BMP_CS 10
 
+#define AS5047P_CHIP_SELECT_PORT 10 
+#define AS5047P_CUSTOM_SPI_BUS_SPEED 100000
+
 #define SEALEVELPRESSURE_HPA (1013.25)
 
-//Setting up for CAN0 line
-FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can0;
+//Setting up for myCan line
+FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> myCan;
+
+//Setting up for magnetic encoders 
+// AS5047P encoder1(AS5047P_CHIP_SELECT_PORT, AS5047P_CUSTOM_SPI_BUS_SPEED); 
+// AS5047P encoder2(11, AS5047P_CUSTOM_SPI_BUS_SPEED);
+// AS5047P encoder3(12, AS5047P_CUSTOM_SPI_BUS_SPEED);
 
 //AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float setMaxDuty)
 AstraMotors Axis1(1, 1, false, 50, 0.50F);//FL
@@ -74,7 +84,7 @@ void  charpump(char* tokes[COMMAND_LIMIT],string str); // convert character arra
 size_t posFlip(size_t pos, string delimiter, string scommand);  // flip delimiter for determing pos (deprecated)
 void   strdump(char* strings[COMMAND_LIMIT], string result[COMMAND_LIMIT]); // dump character array contents into string array
 void   fixString(string& str , bool &fix); // fix incoming string when using VSCode serial monitor
-void   test(); // nothing lives and breathes to the fullest extent
+//void   test(); // nothing lives and breathes to the fullest extent
 
 
 
@@ -93,20 +103,22 @@ void setup() {
     delay(5000);
     digitalWrite(LED_PIN, LOW);
 
-    Can0.begin(); // Initialize CAN bus settings
-    Can0.setBaudRate(1000000);
-    Can0.setMaxMB(16);
-    Can0.enableFIFO();
-    Can0.enableFIFOInterrupt();
+    myCan.begin(); // Initialize CAN bus settings
+    myCan.setBaudRate(1000000);
+    myCan.setMaxMB(16);
+    myCan.enableFIFO();
+    myCan.enableFIFOInterrupt();
 
   //--------------------//
   // Initialize Sensors //
   //--------------------//
  
+  //sendHeartbeat(myCan,2); 
+
   //Start heartbeat thread
   //TEMPORARY FIX, until we get a dedicated microcontroller for heartbeat propogation
   threads.addThread(loopHeartbeats);
-  threads.addThread(test); 
+  //threads.addThread(test); 
 
   
 }
@@ -137,7 +149,9 @@ void loop() {
   // I am keeping it in this version so that I don't forget about it
   //Serial.println(bmp.temperature);
   
-
+   //identifyDevice(myCan,1);
+   //sendHeartbeat(myCan, 1);
+   //Serial.println("sent"); 
   // Accelerate the motors
   if(millis()-lastAccel >= 50){
     lastAccel = millis();
@@ -149,7 +163,7 @@ void loop() {
     {
         for(int i = 0; i < 4; i++)
         {
-          sendDutyCycle(Can0, motorList[i].getID(), motorList[i].getDuty()); // update motors with current duty cycle
+          sendDutyCycle(myCan, motorList[i].getID(), motorList[i].getDuty()); // update motors with current duty cycle
         }
     } else{
         //pass for RPM control mode
@@ -182,8 +196,9 @@ void loop() {
   // For examples of parsing data you can use the link below
   // https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c 
 
+//identifyDevice(myCan,2);   
   
-  //sendDutyCycle(Can0,motorList[0].getID(),0.3);
+  //sendDutyCycle(myCan,motorList[0].getID(),0.3);
 
   if (Serial.available()) {
     //motorList[0].setDuty(0.3);  
@@ -200,6 +215,8 @@ void loop() {
     pos = scommand.find(delimiter);
     token = scommand.substr(0, pos);
     String prevCommand;
+
+    
 
    
    // SERIAL EDITS BEGIN HERE
@@ -219,7 +236,7 @@ void loop() {
       charpump(segments,scommand); // parse string into tokens
       strdump(segments,tokens); // convert tokens back into string
       Serial.println(String(token.c_str()));
-      Serial.println("scommand1: " + String(scommand.c_str()));
+      Serial.println("scommand: " + String(scommand.c_str()));
     // Major Serial Edits END HERE
 
 
@@ -246,17 +263,20 @@ void loop() {
               //Axis0.move(stof(token));                 // set target location for stepper motor
               //Axis0.run();                               // run stepper motor until target is met
 
-            } else if (token == "axis") {                // axis 1-3 control with format "arm,axis,1,duty"
+            } else if (tokens[1] == "axis") {                // axis 1-3 control with format "arm,axis,1,duty"
 
-              int index = stoi(token);                   // get index of selected axis
+              int index = stoi(tokens[2]); 
+              float duty = stof(tokens[3]);                   // get index of selected axis
 
               if (index != 4) {
-                motorList[index].setDuty(convertDuty(stoi(token)));   // set duty cycle of indicated axis
+                motorList[index].setDuty(convertDuty(duty));   // set duty cycle of indicated axis
               }
                 else if (index == 4) {                     // axis 0 control with format "arm,axis,0,target"
                 //Axis0.move(stoi(token));
                 //Axis0.run(); 
               }
+              Serial.println("moving axis " + String(index) + " " + String(duty)); 
+
             } else if  (tokens[1] == "stop") {               // "arm,stop"
 
               for (int j = 0; j < 3; j++) {
@@ -279,7 +299,7 @@ void loop() {
             } else if  (tokens[1] == "test") {
 
               Serial.println("testing begin:"); 
-              motorList[0].setDuty(0.3);   
+              motorList[1].setDuty(convertDuty(-0.1F));   
               Serial.println("testing over"); 
             } else if (tokens[1] == "get") {
               if (tokens[2] == "duty") {
@@ -338,36 +358,34 @@ void loop() {
 
 // Magic that makes the SparkMax work with CAN? 
 void loopHeartbeats(){
-    Can0.begin();
-    Can0.setBaudRate(1000000);
-    Can0.setMaxMB(16);
-    Can0.enableFIFO();
-    Can0.enableFIFOInterrupt();
+    myCan.begin();
+    myCan.setBaudRate(1000000);
+    myCan.setMaxMB(16);
+    myCan.enableFIFO();
+    myCan.enableFIFOInterrupt();
 
     while(1){
-      sendHeartbeat(Can0, 1);
-      threads.delay(30);
-      sendHeartbeat(Can0, 2);
-      threads.delay(30);
-      sendHeartbeat(Can0, 3);
-      threads.delay(30);
-      sendHeartbeat(Can0, 4);
-      threads.delay(30);
+      sendHeartbeat(myCan, 1);
+      threads.delay(5);
+      sendHeartbeat(myCan, 2);
+      threads.delay(5);
+      sendHeartbeat(myCan, 3);
+      threads.delay(5);
       threads.yield();
     }
 
 }
 
 // test function for trying to move the gat dang motors
-void test() { 
-  sendDutyCycle(Can0, Axis1.getID(),0.2); 
-  threads.delay(30); 
-  sendDutyCycle(Can0, Axis1.getID(),0.2); 
-  threads.delay(30); 
-  sendDutyCycle(Can0, Axis1.getID(),0.2); 
-  threads.delay(30); 
-  threads.yield(); 
-}
+// void test() { 
+//   sendDutyCycle(myCan, Axis1.getID(),0.2); 
+//   threads.delay(30); 
+//   sendDutyCycle(myCan, Axis1.getID(),0.2); 
+//   threads.delay(30); 
+//   sendDutyCycle(myCan, Axis1.getID(),0.2); 
+//   threads.delay(30); 
+//   threads.yield(); 
+// }
 
 size_t posFlip(size_t pos, string delimiter, string scommand) { // function to change pos when specific conditions arise (deprecated)
   pos = scommand.find(delimiter);
@@ -497,6 +515,7 @@ float convertDuty(float duty // duty cycle to give
   else if (duty < 0) // coerce duty to predefined backward movement value
   {
     lastDuty = backDuty; 
+    Serial.println(backDuty); 
     return backDuty; 
   }
   return duty; 
