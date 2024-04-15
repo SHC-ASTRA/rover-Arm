@@ -54,6 +54,7 @@ unsigned long lastIdentify;
 
 const float forwardDuty = 0.1; 
 const float backDuty = -0.1; 
+const float ratio90 = (0.2/30); // at speed 0.2, takes 30 seconds to travel 90 degrees
 const int limits[3] = {90,90,90}; 
 const int motor_num = 3; // Number of motors in motorList
 const int UP = 1; 
@@ -67,6 +68,7 @@ char*  segments[COMMAND_LIMIT]; // Mediary layer for converting character buffer
 string tokens[COMMAND_LIMIT];   // Tokens generated from command
 int    char_index = 0;          // Index of allchars, used for determining position
 bool   fixit = false;           // Variable for interpreting VSCode serial monitor (removes 1 character from start of array if true)
+bool   moving = false; 
 
 // Function prototypes 
 void  loopHeartbeats(); 
@@ -80,6 +82,7 @@ float convertDuty(float duty); // convert duty value to one acceptable by AstraM
 float convertDuty(int duty);   // convert duty value to one acceptable by AstraMotors functions
 void  checkAxes(); // check for collision with another axis
 void  charpump(char* tokes[COMMAND_LIMIT],string str); // convert character array 'tokes' to string
+void  movebyAngle(int angle, int axis, float duty); 
 
 size_t posFlip(size_t pos, string delimiter, string scommand);  // flip delimiter for determing pos (deprecated)
 void   strdump(char* strings[COMMAND_LIMIT], string result[COMMAND_LIMIT]); // dump character array contents into string array
@@ -168,9 +171,6 @@ void loop() {
     } else{
         //pass for RPM control mode
     }
-
- 
-
   }
 
 
@@ -299,7 +299,11 @@ void loop() {
             } else if  (tokens[1] == "test") {
 
               Serial.println("testing begin:"); 
-              motorList[1].setDuty(convertDuty(-0.1F));   
+              // int angle = stoi(tokens[2]); 
+              // int axis = stoi(tokens[3]); 
+              // float duty = stof(tokens[4]);
+              movebyAngle(10,2,0.1); 
+              motorList[1].setDuty(0);    
               Serial.println("testing over"); 
             } else if (tokens[1] == "get") {
               if (tokens[2] == "duty") {
@@ -387,6 +391,8 @@ void loopHeartbeats(){
 //   threads.yield(); 
 // }
 
+
+
 size_t posFlip(size_t pos, string delimiter, string scommand) { // function to change pos when specific conditions arise (deprecated)
   pos = scommand.find(delimiter);
   if (pos == size_t(-1)) {
@@ -462,6 +468,34 @@ void moveStepper(float stickValue // movement speed indicator
 // approach limit
 // approach inverse limit 
 // approach zero
+
+void movebyAngle(int angle, int axis, float duty) {
+  ulong time = (angle/0.2)/15; 
+  ulong start = millis(); 
+  motorList[axis-1].setDuty(convertDuty(duty));
+  while ((millis() - start) < time*1000) {
+    //Serial.println(start - millis()); 
+    if(millis()-lastAccel >= 50){
+    lastAccel = millis();
+    for(int i = 0; i < 4; i++) {
+      motorList[i].UpdateForAcceleration();
+    }
+
+    if(motorList[0].getControlMode() == 1)//send the correct duty cycle to the motors
+    {
+        for(int i = 0; i < 4; i++)
+        {
+          sendDutyCycle(myCan, motorList[i].getID(), motorList[i].getDuty()); // update motors with current duty cycle
+        }
+    } else{
+        //pass for RPM control mode
+    }
+  }
+
+  } 
+  //Serial.println(String(start - millis())); 
+  //Serial.println(String(time*1000)); 
+}
 
 // move axis in reverse direction of possible collision
 void moveDirection(int mode // forwards or backwards movement?
