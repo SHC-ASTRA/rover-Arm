@@ -4,6 +4,7 @@
 #include <string>
 #include <cmath>
 #include <cstdlib>
+#include <queue> 
 #include <utility/imumaths.h>
 #include <AS5047P.h> 
 // Our own resources
@@ -33,7 +34,7 @@ using namespace std;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> myCan;
 
 //Setting up for magnetic encoders 
-// AS5047P encoder1(AS5047P_CHIP_SELECT_PORT, AS5047P_CUSTOM_SPI_BUS_SPEED); 
+ AS5047P encoder1(AS5047P_CHIP_SELECT_PORT, AS5047P_CUSTOM_SPI_BUS_SPEED); 
 // AS5047P encoder2(11, AS5047P_CUSTOM_SPI_BUS_SPEED);
 // AS5047P encoder3(12, AS5047P_CUSTOM_SPI_BUS_SPEED);
 
@@ -65,6 +66,7 @@ const int COMMAND_LIMIT = 30; // Maximum number of tokens in command
 
 char   allchars[COMMAND_LIMIT]; // Character buffer for collecting characters into string
 char*  segments[COMMAND_LIMIT]; // Mediary layer for converting character buffer into string
+queue<string> command_queue; 
 string tokens[COMMAND_LIMIT];   // Tokens generated from command
 int    char_index = 0;          // Index of allchars, used for determining position
 bool   fixit = false;           // Variable for interpreting VSCode serial monitor (removes 1 character from start of array if true)
@@ -123,6 +125,10 @@ void setup() {
   threads.addThread(loopHeartbeats);
   //threads.addThread(test); 
 
+   while (!encoder1.initSPI()) {
+    Serial.println(F("Can't connect to the AS5047P sensor! Please check the connection..."));
+    delay(1000);
+  }
   
 }
 
@@ -232,6 +238,12 @@ void loop() {
         {scommand += allchars[j];}
       }
       command = String(scommand.c_str()); 
+      command_queue.push(scommand); 
+      if (!command_queue.empty() && !moving) {
+        scommand = command_queue.front(); 
+        command_queue.pop(); 
+      }
+      
       fixString(scommand,fixit); // fix input command depending on serial connection used
       charpump(segments,scommand); // parse string into tokens
       strdump(segments,tokens); // convert tokens back into string
@@ -328,13 +340,17 @@ void loop() {
 
           // what am I interacting with to control the end effector? 
         }
-      }else if (token == "data") {                          
+      }else if (tokens[0] == "data") {                          
         if(command != prevCommand) {
 
-          scommand.erase(0, pos + delimiter.length());
-          prevCommand = command;
-          pos = scommand.find(delimiter);
-          token = scommand.substr(0, pos);
+          digitalWrite(LED_PIN, HIGH); 
+          Serial.print("Angle: ");                        // print some text to the serial consol.
+          Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
+          delay(500);                                     // wait for 500 milli seconds.
+
+          // wait
+          digitalWrite(LED_PIN, LOW);                     // deactivate the led.
+          delay(500);
         } 
       }
 
