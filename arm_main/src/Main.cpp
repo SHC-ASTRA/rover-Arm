@@ -34,9 +34,9 @@ using namespace std;
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> myCan;
 
 //Setting up for magnetic encoders 
- AS5047P encoder1(AS5047P_CHIP_SELECT_PORT, AS5047P_CUSTOM_SPI_BUS_SPEED); 
-// AS5047P encoder2(11, AS5047P_CUSTOM_SPI_BUS_SPEED);
-// AS5047P encoder3(12, AS5047P_CUSTOM_SPI_BUS_SPEED);
+ AS5047P encoder1(36, AS5047P_CUSTOM_SPI_BUS_SPEED); 
+ // AS5047P encoder2(10, AS5047P_CUSTOM_SPI_BUS_SPEED);
+// AS5047P encoder3(37, AS5047P_CUSTOM_SPI_BUS_SPEED);
 
 //AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float setMaxDuty)
 AstraMotors Axis1(1, 1, false, 50, 0.50F);//FL
@@ -125,10 +125,10 @@ void setup() {
   threads.addThread(loopHeartbeats);
   //threads.addThread(test); 
 
-   while (!encoder1.initSPI()) {
-    Serial.println(F("Can't connect to the AS5047P sensor! Please check the connection..."));
-    delay(1000);
-  }
+  //  while (!encoder1.initSPI()) {
+  //   Serial.println(F("Can't connect to the AS5047P sensor! Please check the connection..."));
+  //   delay(1000);
+  // }
   
 }
 
@@ -353,13 +353,16 @@ void loop() {
           delay(500);
         } 
       }
-
+      
       memset(allchars,'\0',sizeof(allchars));
       Serial.println(); 
       scommand = ""; 
       char_index = 0; 
     }//checkAxes(); 
   }
+  //  Serial.print("Angle: ");                        // print some text to the serial consol.
+  //   Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
+  //   delay(100); 
 }
 
 
@@ -559,12 +562,12 @@ float convertDuty(float duty // duty cycle to give
   }
   if (duty > 0) // coerce duty to predefined forward movement value
   {
-    lastDuty = forwardDuty; 
+    lastDuty = forwardDuty*duty; 
     return forwardDuty; 
   }
   else if (duty < 0) // coerce duty to predefined backward movement value
   {
-    lastDuty = backDuty; 
+    lastDuty = backDuty*abs(duty); 
     Serial.println(backDuty); 
     return backDuty; 
   }
@@ -578,12 +581,12 @@ float convertDuty(int duty) {
   }
   if (duty > 0)
   {
-    lastDuty = forwardDuty; 
+    lastDuty = forwardDuty*duty; 
     return forwardDuty; 
   }
   else if (duty < 0)
   {
-    lastDuty = backDuty; 
+    lastDuty = backDuty*abs(duty); 
     return backDuty; 
   }
   return float(duty); 
