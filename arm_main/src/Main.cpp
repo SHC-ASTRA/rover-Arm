@@ -35,8 +35,10 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> myCan;
 
 //Setting up for magnetic encoders 
  AS5047P encoder1(36, AS5047P_CUSTOM_SPI_BUS_SPEED); 
- // AS5047P encoder2(10, AS5047P_CUSTOM_SPI_BUS_SPEED);
+//  AS5047P encoder2(10, AS5047P_CUSTOM_SPI_BUS_SPEED);
 // AS5047P encoder3(37, AS5047P_CUSTOM_SPI_BUS_SPEED);
+ AS5047P encoders[3] = {encoder1}; 
+
 
 //AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float setMaxDuty)
 AstraMotors Axis1(1, 1, false, 50, 0.50F);//FL
@@ -70,7 +72,8 @@ queue<string> command_queue;
 string tokens[COMMAND_LIMIT];   // Tokens generated from command
 int    char_index = 0;          // Index of allchars, used for determining position
 bool   fixit = false;           // Variable for interpreting VSCode serial monitor (removes 1 character from start of array if true)
-bool   moving = false; 
+bool   moving = false;
+bool   data_bool = false;   
 
 // Function prototypes 
 void  loopHeartbeats(); 
@@ -125,10 +128,10 @@ void setup() {
   threads.addThread(loopHeartbeats);
   //threads.addThread(test); 
 
-  //  while (!encoder1.initSPI()) {
-  //   Serial.println(F("Can't connect to the AS5047P sensor! Please check the connection..."));
-  //   delay(1000);
-  // }
+   while (!encoder1.initSPI()) {
+    Serial.println(F("Can't connect to the AS5047P sensor! Please check the connection..."));
+    delay(1000);
+  }
   
 }
 
@@ -281,7 +284,7 @@ void loop() {
               float duty = stof(tokens[3]);                   // get index of selected axis
 
               if (index != 4) {
-                motorList[index].setDuty(convertDuty(duty));   // set duty cycle of indicated axis
+                motorList[index].setDuty(duty);   // set duty cycle of indicated axis
               }
                 else if (index == 4) {                     // axis 0 control with format "arm,axis,0,target"
                 //Axis0.move(stoi(token));
@@ -344,10 +347,11 @@ void loop() {
         if(command != prevCommand) {
 
           digitalWrite(LED_PIN, HIGH); 
-          Serial.print("Angle: ");                        // print some text to the serial consol.
-          Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
-          delay(500);                                     // wait for 500 milli seconds.
-
+          // Serial.print("Angle: ");                        // print some text to the serial consol.
+          // Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
+          // delay(500);                                     // wait for 500 milli seconds.
+          data_bool = true; 
+          
           // wait
           digitalWrite(LED_PIN, LOW);                     // deactivate the led.
           delay(500);
@@ -360,9 +364,14 @@ void loop() {
       char_index = 0; 
     }//checkAxes(); 
   }
-  //  Serial.print("Angle: ");                        // print some text to the serial consol.
-  //   Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
-  //   delay(100); 
+  if (data_bool) {
+    for (int iter = 0; iter < 3; iter++) {
+    Serial.print("Angle" + String(iter) + ": ");                        // print some text to the serial consol.
+    Serial.println(encoders[iter].readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
+    }
+    delay(200);
+  }
+   
 }
 
 
