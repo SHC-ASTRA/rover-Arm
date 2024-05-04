@@ -230,7 +230,7 @@ void loop() {
    
    // SERIAL EDITS BEGIN HERE
     char acter = Serial.read(); 
-    if (acter != '*') {
+    if (acter != '*') { // DELIMETER IS EXTREMELY IMPORTANT FOR COMMAND INTERPRETATION
         allchars[char_index] = acter; 
         char_index++;  
     }
@@ -364,9 +364,9 @@ void loop() {
       char_index = 0; 
     }//checkAxes(); 
   }
-  if (data_bool) {
+  if (data_bool) { //  change loop amount to change number of encoders checked
     for (int iter = 0; iter < 3; iter++) {
-    Serial.print("Angle" + String(iter) + ": ");                        // print some text to the serial consol.
+    Serial.print("Angle" + String(iter) + ": ");                        // print some text to the serial console.
     Serial.println(encoders[iter].readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
     }
     delay(200);
