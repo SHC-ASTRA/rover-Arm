@@ -1,14 +1,51 @@
 #include <Wire.h>
 #include <SPI.h>
+#include <EEPROM.h>
+#include <cmath>
+#include <cstdlib>
+#include <queue> 
+#include <utility/imumaths.h>
+
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BMP3XX.h"
 #include <Adafruit_BNO055.h>
 #include <Servo.h>
 #include <Adafruit_NeoPixel.h>
-#include <EEPROM.h>
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h> 
+#include <AS5047P.h> 
+#include <HighPowerStepperDriver.h>
+#include <LSS.h>
+
 
 #define SEALEVELPRESSURE_HPA (1013.25)
+
+#define LSS_BAUD    (LSS_DefaultBaud)
+#define LSS_SERIAL    (Serial7)
+
+#define AS5047P_CHIP_SELECT_PORT 10 
+#define AS5047P_CUSTOM_SPI_BUS_SPEED 100000
+
+
+
+void move_wrist(AstraWrist &wrist, bool revolve, bool invert, LSS &top_lss, LSS &bottom_lss){
+    float angle = wrist.step_size * 10;//convert to 0.1 degree increments
+    if(invert)
+    {
+        angle *= -1;//tilt left / revolve ccw
+    }
+
+    if(revolve){//if true, revolve (opposite absolute directions)
+        top_lss.moveRelative(angle*3);
+        bottom_lss.moveRelative(angle*3);
+    }else{
+        if(wrist.cur_tilt+angle > wrist.max_tilt || wrist.cur_tilt+angle < -wrist.max_tilt){
+            return;//max angle would be exceeded, don't move the motors
+        }
+        top_lss.moveRelative(angle);
+        bottom_lss.moveRelative(angle*-1);
+        wrist.cur_tilt += angle;
+    }
+}
 
 /**************************************************************************/
 /*
@@ -234,3 +271,4 @@ String getUTC(SFE_UBLOX_GNSS &myGNSS)
 {
     return String(myGNSS.getHour())+"-"+String(myGNSS.getMinute())+"-"+String(myGNSS.getSecond());
 }
+

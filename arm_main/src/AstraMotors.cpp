@@ -34,7 +34,8 @@ float AstraMotors::convertControllerValue(float stickValue){
 
     if(controlMode == 0)//speed Control mode
     {
-        output = map(output, -1, 1, (-1 * maxSpeed), maxSpeed);
+        return 0; //speed control not implemented
+        //output = map(output, -1, 1, (-1 * maxSpeed), maxSpeed);
     }else{//duty cycle control mode
         output = map(output, -1, 1, (-1 * maxDuty), maxDuty);
     }

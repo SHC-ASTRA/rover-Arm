@@ -1,53 +1,477 @@
-// Includes
+// Standard Includes
 #include <Arduino.h>
 #include <iostream>
 #include <string>
-#include <cmath>
-#include <cstdlib>
-#include <queue> 
-#include <utility/imumaths.h>
-#include <AS5047P.h> 
+
 // Our own resources
 #include "AstraMotors.h"
-//#include "AstraCAN.h"
-//#include "AstraSensors.h"
+#include "AstraArm.h"
+#include "AstraCAN.h"
+#include "AstraSensors.h"
 #include "TeensyThreads.h"
-#include "AstraSubroutines.h"
-
-
 
 using namespace std;
 
+
 #define LED_PIN 13 //Builtin LED pin for Teensy 4.1 (pin 25 for pi Pico)
 
-#define BMP_SCK 13
-#define BMP_MISO 12
-#define BMP_MOSI 11
-#define BMP_CS 10
-
-#define AS5047P_CHIP_SELECT_PORT 10 
-#define AS5047P_CUSTOM_SPI_BUS_SPEED 100000
-
-#define SEALEVELPRESSURE_HPA (1013.25)
 
 //Setting up for myCan line
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> myCan;
 
 //Setting up for magnetic encoders 
- AS5047P encoder1(36, AS5047P_CUSTOM_SPI_BUS_SPEED); 
-//  AS5047P encoder2(10, AS5047P_CUSTOM_SPI_BUS_SPEED);
-// AS5047P encoder3(37, AS5047P_CUSTOM_SPI_BUS_SPEED);
- AS5047P encoders[3] = {encoder1}; 
+AS5047P encoder1(10, AS5047P_CUSTOM_SPI_BUS_SPEED); 
+AS5047P encoder2(37, AS5047P_CUSTOM_SPI_BUS_SPEED);
+AS5047P encoder3(36, AS5047P_CUSTOM_SPI_BUS_SPEED);
+AS5047P encoders[3] = {encoder1, encoder2, encoder3}; 
+
+
+//Setting arm!
+AccelStepper Axis0(AccelStepper::FULL2WIRE,2,3,4,5); // Axis0 belt-driven NEMA stepper
+HighPowerStepperDriver Axis_0; // which to use?
+
+AstraMotors Axis1(1, 1, false, 50, 0.50F);//40:1 cycloidal
+AstraMotors Axis2(2, 1, false, 50, 0.50F);//20:1 cycloidal
+AstraMotors Axis3(3, 1, false, 50, 0.50F);//12:1 cycloidal
+AstraMotors motorList[3] = {Axis1, Axis2, Axis3};
+
+AstraWrist wrist(90,0.5);//Wrist object, set max tilt to +-90 degrees
+
+LSS top_lss = LSS(1); //top LSS on wrist
+LSS bottom_lss = LSS(2);//bottom LSS on wrist
+
+
+float arm_segments[3] = {100.0,100.0,100.0}; //Length of each arm segment (units: mm)
+int arm_ratios[3] = {40,20,12}; //Joint gear ratios (multiplier)
+float arm_angles[3] = {0.0,0.0,0.0}; //Current joint angles (units: degrees)
+float arm_cur_pos[2] = {0.0,0.0}; //Current end effector position (units: mm)
+AstraArm arm(arm_segments, arm_ratios, arm_angles, arm_cur_pos);//Arm object
+
+//Vars
+bool ik_mode = false; // Inverse kinematics control mode
+
+int wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
+int wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
+
+int axis0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
+const uint8_t DirPin = 2;
+const uint8_t StepPin = 3;
+const uint8_t CSPin = 4;
+const uint16_t StepPeriodUs = 2000;// This period is the length of the delay between steps, which controls the stepper motor's speed
+
+unsigned long lastCtrlCmd;//last time a control command was received. Used for safe stop if control is lost
+
+// Function prototypes 
+void loopHeartbeats(); //provide heartbeat to spark max controllers
+void cmd_check(); //check for command if data is in the serial buffer
+void parseInput(const String input, std::vector<String>& args, const char delim = ','); // parse command to args[]
+void step_x0();//Step the axis0 motor when necessary
+void safety_timeout();//stop all motors if no control commands are received for a certain amount of time
+void EF_manip();//manipulate the end effector based on its states
+
+
+void setup() {
+
+    //built_in teensy LED
+    pinMode(LED_PIN, OUTPUT);
+    Serial.begin(115200);//serial monitor
+    digitalWrite(LED_PIN, HIGH);
+
+    //blink to signify boot
+    delay(2000);
+    digitalWrite(LED_PIN, LOW);
+
+    Serial3.begin(115200);//Digit board serial line
+
+
+  //-----------------//
+  //   Initialize    //
+  //-----------------//
+
+    myCan.begin(); // Initialize CAN bus settings
+    myCan.setBaudRate(1000000);
+    myCan.setMaxMB(16);
+    myCan.enableFIFO();
+    myCan.enableFIFOInterrupt();
+
+    SPI.begin();//start SPI for stepper motor and encoders
+    Axis_0.setChipSelectPin(CSPin);
+    pinMode(StepPin, OUTPUT); // Drive the STEP and DIR pins low initially.
+    digitalWrite(StepPin, LOW);
+    pinMode(DirPin, OUTPUT);
+    digitalWrite(DirPin, LOW);
+    delay(1);     // Give the driver some time to power up.
+    Axis_0.resetSettings();    // Reset the driver to its default settings and clear latched status conditions.
+    Axis_0.clearStatus();     
+    Axis_0.setDecayMode(HPSDDecayMode::AutoMixed);     // Select auto mixed decay.  TI's DRV8711 documentation recommends this mode for most applications, and we find that it usually works well.
+    Axis_0.setCurrentMilliamps36v4(1000);     // Set the current limit. You should change the number here to an appropriate value for your particular system.
+    Axis_0.setStepMode(HPSDStepMode::MicroStep32);    // Set the number of microsteps that correspond to one full step.
+    Axis_0.enableDriver();      // Enable the motor outputs.
+
+    LSS::initBus(LSS_SERIAL, LSS_BAUD);
+    // Initialize wrist to zero position
+    top_lss.move(0);
+    bottom_lss.move(0);
+
+
+  //--------------------//
+  // Initialize Sensors //
+  //--------------------//
+ 
+  //Start heartbeat thread
+  //TEMPORARY FIX, until we get a dedicated microcontroller for heartbeat propogation
+  threads.addThread(loopHeartbeats);
+  //threads.addThread(test); 
+
+  
+  
+  
+  for(int e = 0; e < 3; e++)
+  {
+    if(!encoders[e].initSPI()) {
+      Serial.printf("Can't connect to AS5047P sensor %d!\n",e+1);
+      delay(1000);
+    }else{
+      Serial.printf("Found AS5047P sensor %d!\n",e+1);
+    }
+  }
+
+  while(1){
+    Serial.printf("Encoders:\n");
+    for(int e = 0; e < 3; e++)
+    {
+      Serial.printf("%d: %f\n",e+1,encoders[e].readAngleDegree());
+    }
+    Serial.println("\n\n");
+    delay(500);
+  }
+  
+}
+
+
+
+void loop(){
+
+  if(Serial.available())
+    cmd_check(); //check for command if data is in the serial buffer
+
+
+  step_x0();//move Axis_0 based on its state
+  EF_manip();//move end effector based on its states
+
+}
+
+
+
+
+//Functions Section
+//-------------------------------------------------------//
+//                                                       //
+//    ///////////    //\\          //      //////////    //
+//    //             //  \\        //    //              //
+//    //             //    \\      //    //              //
+//    //////         //      \\    //    //              //
+//    //             //        \\  //    //              //
+//    //             //          \\//    //              //
+//    //             //           \//      //////////    //
+//                                                       //
+//-------------------------------------------------------//
+//Functions Section
+
+
+
+void cmd_check(){
+  if (Serial.available()) {//double check just for good measure
+
+  String command = Serial.readStringUntil('\n');  
+  command.trim();
+                      
+  std::vector<String> args = {};
+
+  parseInput(command, args, ',');
+  
+
+    if (command == "arm") { // Is looking for a command -> "arm,..."
+
+      if(args[1] == "setMode"){//arm,setMode,mode
+
+        if(args[2] == "ik"){//arm,setMode,ik
+          ik_mode = true;
+          Serial.println("Set control mode to: IK");
+        }else if(args[2] == "manual"){//arm,setMode,manual
+          ik_mode = false;
+          Serial.println("Set control mode to: manual");
+        }else{
+          Serial.println("Invalid control mode!");
+        }
+
+      }else if(args[1] == "man"){//arm,man,duty,axis_0,axis_1,axis_2,axis_3. // -1: ccw, 0: stop, 1: cw 
+        if(!ik_mode && args.size() >= 7)//if not in IK mode and got enough arguments for all joints
+        {
+          axis0_state = args[2].toInt();//set axis0 state
+          
+          for(int m = 0; m < 3; m++)
+          {
+            motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat());//set duty cycle to and provided direction (or stop)
+            delay(2);//delay to ensure all commands go through on CAN
+          }
+
+          lastCtrlCmd = millis();//update last control command time
+        }else{
+          Serial.println("Manual control disabled while in IK mode");
+        }
+      }else if(args[1] == "ik")//arm,ik,axis_0_state,rel_target_x,rel_target_y
+      {
+        if(ik_mode && args.size() >= 5)//if in IK mode and correct number of arguments
+        {
+          axis0_state = args[2].toInt();//set axis0 state
+
+          //ik_plan(rel_target_x, rel_target_y);
+
+          lastCtrlCmd = millis();//update last control command time
+        }else{
+          Serial.println("IK control disabled while in manual mode");
+        }
+      }else if(args[1] == "endEffect")//arm,endEffect,...
+      {
+        if(args[2] == "ctrl")//arm,endEffect,ctrl,gripper_state,tilt_state,rotation_state
+        {
+          Serial3.printf("digit,ctrl,%d",args[3].toInt()); //send gripper control command to digit board
+          
+          wrist_tilt_state = args[4].toInt();//set wrist tilt state
+          wrist_revolve_state = args[5].toInt();//set wrist revolve state
+
+        }else if(args[2] == "laser"){
+          Serial3.printf("digit,laser,%d",args[3].toInt());//send laser control command to digit board
+        }
+      }else if (args[1] == "axis"){ // "arm,axis,axis_#,duty_cycle" // controls a single axis at a time (set direction)// FOR TESTING ONLY
+
+        if(args[2] == "0"){//different control scheme for axis0
+
+        axis0_state = args[3].toInt();//set state of axis 0
+
+        }else if ((args[2].toInt() >= 1) && (args[2].toInt()<= 3)){//ensure the axis is a valid index
+          int motor_index = args[2].toInt() - 1; //get the motor id (-1 for index)
+
+          motorList[motor_index].setDuty(args[3].toFloat());
+          sendDutyCycle(myCan, motorList[motor_index].getID(), motorList[motor_index].getSetDuty()); // update motors with current duty cycle
+        }
+
+      }else if(args[1] == "stop") { // "arm,stop" //stops movement on all axis
+
+        for (int j = 0; j < 3; j++) {
+          motorList[j].setDuty(0);
+          sendDutyCycle(myCan, motorList[j].getID(), 0); // stop all motors
+        }
+        
+        axis0_state = 0; //axis 0 movement to stop
+
+      } else if  (args[1] == "ping") { // "arm,ping"
+
+        Serial.println("pong"); 
+      } else if  (args[1] == "time")  { // "arm,time,ms,axis"
+              
+        // int time = stoi(args[2].c_str()); // how long to run for
+        // int index = stoi(args[3].c_str()); // index of selected motor
+
+        // Serial.print("index: " + String(index));
+        // Serial.print(" time: " + String(time)); 
+
+        //turnTime(time,0.25F,index);
+      } else if  (args[1] == "test") {
+
+        // Serial.println("testing begin:"); 
+        // // int angle = stoi(tokens[2]); 
+        // // int axis = stoi(tokens[3]); 
+        // // float duty = stof(tokens[4]);
+        // movebyAngle(10,2,0.1); 
+        // motorList[1].setDuty(0);    
+        // Serial.println("testing over"); 
+      } else if (args[1] == "get") {
+        if (args[2] == "duty") {
+          Serial.println( "motor1duty: " + String(motorList[0].getSetDuty()) );
+          Serial.println( "motor2duty: " + String(motorList[1].getSetDuty()) );
+          Serial.println( "motor3duty: " + String(motorList[2].getSetDuty()) );
+        } else if (args[2] == "speed") {
+          Serial.println( "motor1speed: " + String(motorList[0].getSpeed()) );
+          Serial.println( "motor2speed: " + String(motorList[1].getSpeed()) );
+          Serial.println( "motor3speed: " + String(motorList[2].getSpeed()) );
+        } else if (args[2] == "mode") {
+          Serial.println( "motor1mode: " + String(motorList[0].getControlMode()) );
+          Serial.println( "motor2mode: " + String(motorList[1].getControlMode()) );
+          Serial.println( "motor3mode: " + String(motorList[2].getControlMode()) );
+        }
+
+      }
+
+      
+    }else if (command == "endEffect"){// looking for a command -> "endEffect,..."
+      //pass
+    }else if (command == "data") {  
+      /*
+        digitalWrite(LED_PIN, HIGH); 
+        // Serial.print("Angle: ");                        // print some text to the serial consol.
+        // Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
+        // delay(500);                                     // wait for 500 milli seconds.
+        data_bool = true; 
+        
+        // wait
+        digitalWrite(LED_PIN, LOW);                     // deactivate the led.
+        delay(500);
+        */
+    }
+    
+  }//checkAxes(); 
+}
+
+
+
+// Parse `input` into `args` separated by `delim`
+// Ex: "ctrl,led,on" => {ctrl,led,on}
+// Equivalent to Python's `.split()`
+void parseInput(const String input, std::vector<String>& args, const char delim = ',') {
+    //Modified from https://forum.arduino.cc/t/how-to-split-a-string-with-space-and-store-the-items-in-array/888813/9
+
+    // Index of previously found delim
+    int lastIndex = -1;
+    // Index of currently found delim
+    int index = -1;
+    // because lastIndex=index, lastIndex starts at -1, so with lastIndex+1, first search begins at 0
+
+    // if empty input for some reason, don't do anything
+    if(input.length() == 0)
+        return;
+
+    unsigned count = 0;
+    while (count++, count < 200 /*arbitrary limit on number of delims because while(true) is scary*/) {
+        lastIndex = index;
+        // using lastIndex+1 instead of input = input.substring to reduce memory impact
+        index = input.indexOf(delim, lastIndex+1);
+        if (index == -1) { // No instance of delim found in input
+            // If no delims are found at all, then lastIndex+1 == 0, so whole string is passed.
+            // Otherwise, only the last part of input is passed because of lastIndex+1.
+            args.push_back(input.substring(lastIndex+1));
+            // Exit the loop when there are no more delims
+            break;
+        } else { // delim found
+            // If this is the first delim, lastIndex+1 == 0, so starts from beginning
+            // Otherwise, starts from last found delim with lastIndex+1
+            args.push_back(input.substring(lastIndex+1, index));
+        }
+    }
+
+    // output is via vector<String>& args
+}
+
+void step_x0()
+{
+  if(axis0_state != 0)//if not stop
+  {
+    delayMicroseconds(1);//need delay before & after to set direction
+    if(axis0_state >= 1)//positive for cw
+      {digitalWrite(DirPin, axis0_state);}//input 1 results in cw motion
+    else //negative for ccw
+      {digitalWrite(DirPin, 0);}//convert the -1 input to 0 for ccw motion
+    delayMicroseconds(1);
+
+    // The STEP minimum high pulse width is 1.9 microseconds.
+    digitalWrite(StepPin, HIGH);
+    delayMicroseconds(3);
+    digitalWrite(StepPin, LOW);
+    delayMicroseconds(3);
+  }
+
+}
+
+
+void loopHeartbeats(){
+    myCan.begin();
+    myCan.setBaudRate(1000000);
+    myCan.setMaxMB(16);
+    myCan.enableFIFO();
+    myCan.enableFIFOInterrupt();
+
+    while(1){
+      sendHeartbeat(myCan, 1);
+      threads.delay(5);
+      sendHeartbeat(myCan, 2);
+      threads.delay(5);
+      sendHeartbeat(myCan, 3);
+      threads.delay(5);
+      threads.yield();
+    }
+
+}
+
+
+void safety_timeout(){
+  if(millis() - lastCtrlCmd > 3000)//if no control commands are received for 3 seconds
+  {
+    for(int m = 0; m < 3; m++)
+    {
+      motorList[m].setDuty(0);//stop all motors
+      sendDutyCycle(myCan, motorList[m].getID(), 0);//send stop command to all motors
+    }
+    axis0_state = 0;//stop axis 0
+
+    arm.ik_obj.active = false;//disable IK objective to stop IK movement
+  }
+}
+
+
+void EF_manip(){
+  //manipulate the end effector based on its states
+  //wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
+  //wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
+
+  if(wrist_tilt_state != 0 && wrist_revolve_state != 0)//give preference to revolve
+  {
+    wrist_tilt_state = 0;//stop tilt if revolve is active
+  }
+  if(wrist_tilt_state != 0)
+  {
+    //manipulate wrist tilt
+    if(wrist_tilt_state >= 1)//right
+    {
+      move_wrist(wrist, 0, 0, top_lss, bottom_lss);
+    }else if(wrist_tilt_state <= -1)//left
+    {
+      move_wrist(wrist, 0, 1, top_lss, bottom_lss);
+    }
+  }else if(wrist_revolve_state != 0)
+  {
+    //manipulate wrist revolve
+    if(wrist_revolve_state >= 1)//cw
+    {
+      move_wrist(wrist, 1, 0, top_lss, bottom_lss);
+    }else if(wrist_revolve_state <= -1)//ccw
+    {
+      move_wrist(wrist, 1, 1, top_lss, bottom_lss);
+    }
+  }
+
+
+}
+
+
+
+
+/*
+
+
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+
+
+
 
 
 //AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float setMaxDuty)
-AstraMotors Axis1(1, 1, false, 50, 0.50F);//FL
-AstraMotors Axis2(2, 1, false, 50, 0.50F);//BL
-AstraMotors Axis3(3, 1, false, 50, 0.50F);//FR
+
 //AstraMotors Axis3(3, 1, false, 50, 0.50F);//BR
 
-AstraMotors motorList[3] = {Axis1, Axis2, Axis3};//Left motors first, Right motors Second
-AccelStepper Axis0(AccelStepper::FULL2WIRE,2,3,4,5); // change pin locations
+//Left motors first, Right motors Second
+
 
 unsigned long lastAccel;
 unsigned long lastDuty;
@@ -75,8 +499,7 @@ bool   fixit = false;           // Variable for interpreting VSCode serial monit
 bool   moving = false;
 bool   data_bool = false;   
 
-// Function prototypes 
-void  loopHeartbeats(); 
+
 void  turnTime(int time, float duty, int index = 5); // turn motors for amount of time in ms
 void  splitString(String comm, String prevComm, string tok, size_t pos, string scomm, string delim); // split string into tokens (deprecated)
 void  getToken(string token, size_t pos, string delimiter, string scommand); // get individual token from command (deprecated)
@@ -89,7 +512,6 @@ void  checkAxes(); // check for collision with another axis
 void  charpump(char* tokes[COMMAND_LIMIT],string str); // convert character array 'tokes' to string
 void  movebyAngle(int angle, int axis, float duty); 
 
-size_t posFlip(size_t pos, string delimiter, string scommand);  // flip delimiter for determing pos (deprecated)
 void   strdump(char* strings[COMMAND_LIMIT], string result[COMMAND_LIMIT]); // dump character array contents into string array
 void   fixString(string& str , bool &fix); // fix incoming string when using VSCode serial monitor
 //void   test(); // nothing lives and breathes to the fullest extent
@@ -98,42 +520,7 @@ void   fixString(string& str , bool &fix); // fix incoming string when using VSC
 
 
 
-void setup() {
 
-  //-----------------//
-  // Initialize Pins //
-  //-----------------//
-  
-    pinMode(LED_PIN, OUTPUT);
-    Serial.begin(115200);
-    digitalWrite(LED_PIN, HIGH);
-
-    delay(5000);
-    digitalWrite(LED_PIN, LOW);
-
-    myCan.begin(); // Initialize CAN bus settings
-    myCan.setBaudRate(1000000);
-    myCan.setMaxMB(16);
-    myCan.enableFIFO();
-    myCan.enableFIFOInterrupt();
-
-  //--------------------//
-  // Initialize Sensors //
-  //--------------------//
- 
-  //sendHeartbeat(myCan,2); 
-
-  //Start heartbeat thread
-  //TEMPORARY FIX, until we get a dedicated microcontroller for heartbeat propogation
-  threads.addThread(loopHeartbeats);
-  //threads.addThread(test); 
-
-   while (!encoder1.initSPI()) {
-    Serial.println(F("Can't connect to the AS5047P sensor! Please check the connection..."));
-    delay(1000);
-  }
-  
-}
 
 
 
@@ -209,7 +596,8 @@ void loop() {
   
   //sendDutyCycle(myCan,motorList[0].getID(),0.3);
 
-  if (Serial.available()) {
+void cmd_check(){
+    if (Serial.available()) {
     //motorList[0].setDuty(0.3);  
      
     String command = ""; // Serial edition change
@@ -225,7 +613,6 @@ void loop() {
     token = scommand.substr(0, pos);
     String prevCommand;
 
-    
 
    
    // SERIAL EDITS BEGIN HERE
@@ -364,6 +751,13 @@ void loop() {
       char_index = 0; 
     }//checkAxes(); 
   }
+}
+
+
+
+
+
+
   if (data_bool) { //  change loop amount to change number of encoders checked
     for (int iter = 0; iter < 3; iter++) {
     Serial.print("Angle" + String(iter) + ": ");                        // print some text to the serial console.
@@ -374,61 +768,6 @@ void loop() {
    
 }
 
-
-
-//-------------------------------------------------------//
-//                                                       //
-//    ///////////    //\\          //      //////////    //
-//    //             //  \\        //    //              //
-//    //             //    \\      //    //              //
-//    //////         //      \\    //    //              //
-//    //             //        \\  //    //              //
-//    //             //          \\//    //              //
-//    //             //           \//      //////////    //
-//                                                       //
-//-------------------------------------------------------//
-
-// Magic that makes the SparkMax work with CAN? 
-void loopHeartbeats(){
-    myCan.begin();
-    myCan.setBaudRate(1000000);
-    myCan.setMaxMB(16);
-    myCan.enableFIFO();
-    myCan.enableFIFOInterrupt();
-
-    while(1){
-      sendHeartbeat(myCan, 1);
-      threads.delay(5);
-      sendHeartbeat(myCan, 2);
-      threads.delay(5);
-      sendHeartbeat(myCan, 3);
-      threads.delay(5);
-      threads.yield();
-    }
-
-}
-
-// test function for trying to move the gat dang motors
-// void test() { 
-//   sendDutyCycle(myCan, Axis1.getID(),0.2); 
-//   threads.delay(30); 
-//   sendDutyCycle(myCan, Axis1.getID(),0.2); 
-//   threads.delay(30); 
-//   sendDutyCycle(myCan, Axis1.getID(),0.2); 
-//   threads.delay(30); 
-//   threads.yield(); 
-// }
-
-
-
-size_t posFlip(size_t pos, string delimiter, string scommand) { // function to change pos when specific conditions arise (deprecated)
-  pos = scommand.find(delimiter);
-  if (pos == size_t(-1)) {
-    pos = scommand.length();
-    return pos; 
-  }
-  else {return pos;}
-}
 
 // turn a motor for a specified amount of time
 void turnTime(int time, // amount of time in ms to rotate for
@@ -642,3 +981,5 @@ void fixString(string& str  // string to fix
         str = temp; // replace original string with left-shifted string
     }
 }
+
+*/
