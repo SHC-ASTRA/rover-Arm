@@ -8,6 +8,7 @@ import glob
 
 
 from std_msgs.msg import String
+from interfaces_pkg import ControllerState
 
 class SerialRelay(Node):
     def __init__(self):
