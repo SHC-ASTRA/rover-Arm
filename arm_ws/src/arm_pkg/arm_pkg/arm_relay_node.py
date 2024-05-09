@@ -45,7 +45,7 @@ class SerialRelay(Node):
         
         if self.port is None:
             print("Unable to find MCU... please make sure it is connected.")
-            sys.exit(1)
+            #sys.exit(1) TEMPORARY TEST, UNCOMMENT THIS LINE IN THE FUTURE
         
         self.ser = serial.Serial(self.port, 115200)
 
