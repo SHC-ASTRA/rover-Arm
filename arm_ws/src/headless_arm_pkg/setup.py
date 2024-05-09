@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'arm_pkg'
+package_name = 'headless_arm_pkg'
 
 setup(
     name=package_name,
@@ -15,12 +15,12 @@ setup(
     zip_safe=True,
     maintainer='tristan',
     maintainer_email='tristanmcginnis26@gmail.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Package used for headless rover arm control with a controller',
+    license='All Rights Reserved',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'arm = arm_pkg.arm_relay_node:main'
+            'headless = headless_arm_pkg.headless_arm_ctrl_node:main'
         ],
     },
 )

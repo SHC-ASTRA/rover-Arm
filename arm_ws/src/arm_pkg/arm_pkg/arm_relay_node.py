@@ -9,8 +9,8 @@ import time
 
 
 from std_msgs.msg import String
-from interfaces_pkg import ControllerState
-from interfaces_pkg import ArmState
+from interfaces_pkg.msg import ControllerState
+from interfaces_pkg.msg import ArmState
 
 
 class SerialRelay(Node):
