@@ -18,7 +18,7 @@ class Headless(Node):
         # Initalize node with name
         super().__init__("headless_arm_ctrl")
 
-        self.create_timer(0.10, self.send_controls)#read and send controls every 0.1 seconds
+        self.create_timer(1, self.send_controls)#read and send controls every 0.1 seconds
 
 
         # Create a publisher to publish any output the pico sends
@@ -91,79 +91,76 @@ class Headless(Node):
                 exit()
         input = ControllerState()
 
-        input.lt = self.gamepad.get_axis(4)#left trigger
+        input.lt = self.gamepad.get_axis(2)#left trigger
         input.rt = self.gamepad.get_axis(5)#right trigger
         
         #input.lb = self.gamepad.get_button(9)#Value must be converted to bool
-        if(self.gamepad.get_button(9)):#left bumper
+        if(self.gamepad.get_button(4)):#left bumper
             input.lb = True
         else:
             input.lb = False
 
         #input.rb = self.gamepad.get_button(10)#Value must be converted to bool
-        if(self.gamepad.get_button(10)):#right bumper
+        if(self.gamepad.get_button(5)):#right bumper
             input.rb = True
         else:
             input.rb = False
         
         #input.plus = self.gamepad.get_button(6)#plus button
-        if(self.gamepad.get_button(6)):#plus button
+        if(self.gamepad.get_button(7)):#plus button
             input.plus = True
         else:
             input.plus = False
 
         #input.minus = self.gamepad.get_button(4)#minus button
-        if(self.gamepad.get_button(4)):#minus button
+        if(self.gamepad.get_button(6)):#minus button
             input.minus = True
         else:
             input.minus = False
 
-        input.ls_x = self.gamepad.get_axis(0)#left x-axis
-        input.ls_y = self.gamepad.get_axis(1)#left y-axis
-        input.rs_x = self.gamepad.get_axis(2)#right x-axis
-        input.rs_y = self.gamepad.get_axis(3)#right y-axis  
+        input.ls_x = round(self.gamepad.get_axis(0),2)#left x-axis
+        input.ls_y = round(self.gamepad.get_axis(1),2)#left y-axis
+        input.rs_x = round(self.gamepad.get_axis(3),2)#right x-axis
+        input.rs_y = round(self.gamepad.get_axis(4),2)#right y-axis  
 
         #input.a = self.gamepad.get_button(1)#A button
-        if(self.gamepad.get_button(1)):#A button
+        if(self.gamepad.get_button(0)):#A button
             input.a = True
         else:
             input.a = False
         #input.b = self.gamepad.get_button(0)#B button
-        if(self.gamepad.get_button(0)):#B button
+        if(self.gamepad.get_button(1)):#B button
             input.b = True
         else:
             input.b = False
         #input.x = self.gamepad.get_button(3)#X button
-        if(self.gamepad.get_button(3)):#X button
+        if(self.gamepad.get_button(2)):#X button
             input.x = True
         else:
             input.x = False
         #input.y = self.gamepad.get_button(2)#Y button
-        if(self.gamepad.get_button(2)):#Y button
+        if(self.gamepad.get_button(3)):#Y button
             input.y = True
         else:
             input.y = False
 
-        #input.d_up = self.gamepad.get_button(11)#D-pad up  
-        if(self.gamepad.get_button(11)):#D-pad up
-            input.d_up = True
-        else:
-            input.d_up = False
-        #input.d_down = self.gamepad.get_button(12)#D-pad down
-        if(self.gamepad.get_button(12)):#D-pad down
-            input.d_down = True
-        else:
-            input.d_down = False
-        #input.d_left = self.gamepad.get_button(13)#D-pad left
-        if(self.gamepad.get_button(13)):#D-pad left
-            input.d_left = True
-        else:
-            input.d_left = False
-        #input.d_right = self.gamepad.get_button(14)#D-pad right
-        if(self.gamepad.get_button(14)):#D-pad right
+
+        dpad_input = self.gamepad.get_hat(0)#D-pad input
+
+        #not using up/down on DPad
+        input.d_up = False
+        input.d_down = False
+
+
+        if(dpad_input[0] == 1):#D-pad right
             input.d_right = True
         else:
             input.d_right = False
+        if(dpad_input[0] == -1):#D-pad left
+            input.d_left = True
+        else:
+            input.d_left = False
+       
 
         if pygame.joystick.get_count() != 0:
         
