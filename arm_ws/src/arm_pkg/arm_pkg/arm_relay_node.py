@@ -101,26 +101,26 @@ class SerialRelay(Node):
             ef_cmd = "endEffect,ctrl,"
             
             if(msg.lt >= 0.5):#If LT button: Open end effector
-                ef_cmd.append("-1,")
+                ef_cmd += "-1,"
             elif(msg.rt >= 0.5):#If RT button: Close end effector
-                ef_cmd.append("1,")
+                ef_cmd += "1,"
             else:
-                ef_cmd.append("0,")
+                ef_cmd += "0,"
 
             if(msg.rs_x < 0): #Check left/stop/right for tilt movement
-                ef_cmd.append("-1,")
+                ef_cmd += "-1,"
             elif(msg.rs_x > 0):
-                ef_cmd.append("1,")
+                ef_cmd += "1,"
             else:
-                ef_cmd.append("0,")
+                ef_cmd += "0,"
             pass
             
             if(msg.ls_x < 0): #Check left/stop/right for revolve movement
-                ef_cmd.append("-1")
+                ef_cmd += "-1"
             elif(msg.ls_x > 0):
-                ef_cmd.append("1")
+                ef_cmd += "1"
             else:
-                ef_cmd.append("0")
+                ef_cmd += "0"
 
             command = ef_cmd + "\n"
             self.ser.write(bytes(command, "utf8"))
@@ -129,11 +129,11 @@ class SerialRelay(Node):
         else:
             ef_cmd = "endEffect,ctrl,"
             if(msg.lt >= 0.5):
-                ef_cmd.append("-1,0,0")
+                ef_cmd += "-1,0,0"
             elif(msg.rt >= 0.5):
-                ef_cmd.append("1,0,0")
+                ef_cmd += "1,0,0"
             else:
-                ef_cmd.append("0,0,0")
+                ef_cmd += "0,0,0"
             command = ef_cmd + "\n"
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")

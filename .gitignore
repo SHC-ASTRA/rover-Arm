@@ -3,3 +3,4 @@ install/
 log/
 .vscode/
 *.code-workspace
+arm_main/.vscode/settings.json
