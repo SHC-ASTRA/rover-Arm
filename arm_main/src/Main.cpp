@@ -64,7 +64,7 @@ unsigned long lastCtrlCmd;//last time a control command was received. Used for s
 // Function prototypes 
 void loopHeartbeats(); //provide heartbeat to spark max controllers
 void cmd_check(); //check for command if data is in the serial buffer
-void parseInput(const String input, std::vector<String>& args, const char delim = ','); // parse command to args[]
+void parseInput(const String input, std::vector<String>& args, char delim); // parse command to args[]
 void step_x0();//Step the axis0 motor when necessary
 void safety_timeout();//stop all motors if no control commands are received for a certain amount of time
 void EF_manip();//manipulate the end effector based on its states
@@ -136,6 +136,7 @@ void setup() {
     }
   }
 
+  /*
   while(1){
     Serial.printf("Encoders:\n");
     for(int e = 0; e < 3; e++)
@@ -144,7 +145,7 @@ void setup() {
     }
     Serial.println("\n\n");
     delay(500);
-  }
+  }*/
   
 }
 
@@ -152,11 +153,13 @@ void setup() {
 
 void loop(){
 
-  if(Serial.available())
+  if(Serial.available()){
+    Serial.println("serial present, cmd checking");
     cmd_check(); //check for command if data is in the serial buffer
+  }
+    
 
-
-  step_x0();//move Axis_0 based on its state
+  //step_x0();//move Axis_0 based on its state
   EF_manip();//move end effector based on its states
 
 }
@@ -182,16 +185,18 @@ void loop(){
 
 void cmd_check(){
   if (Serial.available()) {//double check just for good measure
+  Serial.println("CMD CHECK RUNNING");
 
   String command = Serial.readStringUntil('\n');  
   command.trim();
                       
   std::vector<String> args = {};
-
   parseInput(command, args, ',');
-  
 
-    if (command == "arm") { // Is looking for a command -> "arm,..."
+  
+  //Serial.printf("args: %s, %s, %s, %s\n", args[0].c_str(), args[1].c_str(), args[2].c_str(), args[3].c_str());
+
+    if (args[0] == "arm") { // Is looking for a command -> "arm,..."
 
       if(args[1] == "setMode"){//arm,setMode,mode
 
@@ -206,10 +211,15 @@ void cmd_check(){
         }
 
       }else if(args[1] == "man"){//arm,man,duty,axis_0,axis_1,axis_2,axis_3. // -1: ccw, 0: stop, 1: cw 
-        if(!ik_mode && args.size() >= 7)//if not in IK mode and got enough arguments for all joints
+        if(ik_mode)
+        {
+          Serial.println("Manual control disabled while in IK mode");
+        }else if(args.size() == 7)//if not in IK mode and got enough arguments for all joints
         {
           axis0_state = args[2].toInt();//set axis0 state
           
+          Serial.println("trying to set motor duty cycles");
+
           for(int m = 0; m < 3; m++)
           {
             motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat());//set duty cycle to and provided direction (or stop)
@@ -218,19 +228,22 @@ void cmd_check(){
 
           lastCtrlCmd = millis();//update last control command time
         }else{
-          Serial.println("Manual control disabled while in IK mode");
+          Serial.println("Manual control error: invalid number of inputs");
         }
       }else if(args[1] == "ik")//arm,ik,axis_0_state,rel_target_x,rel_target_y
       {
-        if(ik_mode && args.size() >= 5)//if in IK mode and correct number of arguments
+        if(!ik_mode){
+          Serial.println("IK control disabled while in manual mode");
+        }else if(args.size() == 5)//if in IK mode and correct number of arguments
         {
           axis0_state = args[2].toInt();//set axis0 state
 
           //ik_plan(rel_target_x, rel_target_y);
+          Serial.println("trying to plan IK");
 
           lastCtrlCmd = millis();//update last control command time
         }else{
-          Serial.println("IK control disabled while in manual mode");
+          Serial.println("IK control error: invalid number of inputs");
         }
       }else if(args[1] == "endEffect")//arm,endEffect,...
       {
@@ -258,6 +271,7 @@ void cmd_check(){
         }
 
       }else if(args[1] == "stop") { // "arm,stop" //stops movement on all axis
+        Serial.println("Stopping all motors");
 
         for (int j = 0; j < 3; j++) {
           motorList[j].setDuty(0);
@@ -271,8 +285,8 @@ void cmd_check(){
         Serial.println("pong"); 
       } else if  (args[1] == "time")  { // "arm,time,ms,axis"
               
-        // int time = stoi(args[2].c_str()); // how long to run for
-        // int index = stoi(args[3].c_str()); // index of selected motor
+        // int time = stoi(args_c[2].c_str()); // how long to run for
+        // int index = stoi(args_c[3].c_str()); // index of selected motor
 
         // Serial.print("index: " + String(index));
         // Serial.print(" time: " + String(time)); 
@@ -305,9 +319,9 @@ void cmd_check(){
       }
 
       
-    }else if (command == "endEffect"){// looking for a command -> "endEffect,..."
+    }else if (args[0] == "endEffect"){// looking for a command -> "endEffect,..."
       //pass
-    }else if (command == "data") {  
+    }else if (args[0] == "data") {  
       /*
         digitalWrite(LED_PIN, HIGH); 
         // Serial.print("Angle: ");                        // print some text to the serial consol.
@@ -329,7 +343,7 @@ void cmd_check(){
 // Parse `input` into `args` separated by `delim`
 // Ex: "ctrl,led,on" => {ctrl,led,on}
 // Equivalent to Python's `.split()`
-void parseInput(const String input, std::vector<String>& args, const char delim = ',') {
+void parseInput(const String input, std::vector<String>& args, char delim) {
     //Modified from https://forum.arduino.cc/t/how-to-split-a-string-with-space-and-store-the-items-in-array/888813/9
 
     // Index of previously found delim
@@ -452,6 +466,8 @@ void EF_manip(){
 
 
 }
+
+
 
 
 
