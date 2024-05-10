@@ -60,6 +60,7 @@ const uint8_t CSPin = 4;
 const uint16_t StepPeriodUs = 2000;// This period is the length of the delay between steps, which controls the stepper motor's speed
 
 unsigned long lastCtrlCmd;//last time a control command was received. Used for safe stop if control is lost
+unsigned long lastMotorUpdate;//last time the motors were updated
 
 // Function prototypes 
 void loopHeartbeats(); //provide heartbeat to spark max controllers
@@ -68,7 +69,7 @@ void parseInput(const String input, std::vector<String>& args, char delim); // p
 void step_x0();//Step the axis0 motor when necessary
 void safety_timeout();//stop all motors if no control commands are received for a certain amount of time
 void EF_manip();//manipulate the end effector based on its states
-
+void update_motors();//send duty cycle control command to all motors
 
 void setup() {
 
@@ -154,14 +155,14 @@ void setup() {
 void loop(){
 
   if(Serial.available()){
-    Serial.println("serial present, cmd checking");
+    Serial.println("Serial Recieved...");
     cmd_check(); //check for command if data is in the serial buffer
   }
     
 
   //step_x0();//move Axis_0 based on its state
   EF_manip();//move end effector based on its states
-
+  update_motors();
 }
 
 
@@ -185,7 +186,6 @@ void loop(){
 
 void cmd_check(){
   if (Serial.available()) {//double check just for good measure
-  Serial.println("CMD CHECK RUNNING");
 
   String command = Serial.readStringUntil('\n');  
   command.trim();
@@ -223,6 +223,7 @@ void cmd_check(){
           for(int m = 0; m < 3; m++)
           {
             motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat());//set duty cycle to and provided direction (or stop)
+            //sendDutyCycle(myCan, motorList[m].getID(), motorList[m].getDuty());//send duty cycle to motor
             delay(2);//delay to ensure all commands go through on CAN
           }
 
@@ -267,7 +268,7 @@ void cmd_check(){
           int motor_index = args[2].toInt() - 1; //get the motor id (-1 for index)
 
           motorList[motor_index].setDuty(args[3].toFloat());
-          sendDutyCycle(myCan, motorList[motor_index].getID(), motorList[motor_index].getSetDuty()); // update motors with current duty cycle
+          //sendDutyCycle(myCan, motorList[motor_index].getID(), motorList[motor_index].getDuty()); // update motors with current duty cycle
         }
 
       }else if(args[1] == "stop") { // "arm,stop" //stops movement on all axis
@@ -275,7 +276,7 @@ void cmd_check(){
 
         for (int j = 0; j < 3; j++) {
           motorList[j].setDuty(0);
-          sendDutyCycle(myCan, motorList[j].getID(), 0); // stop all motors
+          sendDutyCycle(myCan, motorList[j].getID(), 0.0); // stop all motors
         }
         
         axis0_state = 0; //axis 0 movement to stop
@@ -469,7 +470,17 @@ void EF_manip(){
 
 
 
-
+void update_motors()
+{
+  if(millis()-lastMotorUpdate > 500)
+  {
+    for(int j = 0; j < 3; j++)
+    {
+      sendDutyCycle(myCan, motorList[j].getID(), motorList[j].getDuty());
+    }
+    lastMotorUpdate = millis();
+  }
+}
 
 
 /*
