@@ -32,7 +32,7 @@ class SerialRelay(Node):
             try:
                 # connect and send a ping command
                 ser = serial.Serial(port, timeout=1)
-                ser.write(b"ping\n")
+                ser.write(b"arm,ping\n")
                 response = ser.read_until("\n")
 
                 # if pong is in response, then we are talking with the mcu
