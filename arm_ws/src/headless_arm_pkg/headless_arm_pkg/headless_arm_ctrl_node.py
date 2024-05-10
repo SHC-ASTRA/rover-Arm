@@ -18,7 +18,7 @@ class Headless(Node):
         # Initalize node with name
         super().__init__("headless_arm_ctrl")
 
-        self.create_timer(1, self.send_controls)#read and send controls every 0.1 seconds
+        self.create_timer(0.25, self.send_controls)#read and send controls every 0.1 seconds
 
 
         # Create a publisher to publish any output the pico sends
