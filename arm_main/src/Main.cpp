@@ -37,11 +37,11 @@ AstraMotors motorList[3] = {Axis1, Axis2, Axis3};
 
 AstraWrist wrist(90,0.5);//Wrist object, set max tilt to +-90 degrees
 
-LSS top_lss = LSS(1); //top LSS on wrist
-LSS bottom_lss = LSS(2);//bottom LSS on wrist
+LSS top_lss = LSS(1);     //top LSS on wrist
+LSS bottom_lss = LSS(2);  //bottom LSS on wrist
 
 
-float arm_segments[3] = {100.0,100.0,100.0}; //Length of each arm segment (units: mm)
+int arm_segments[3] = {100,100,100}; //Length of each arm segment (units: mm)
 int arm_ratios[3] = {40,20,12}; //Joint gear ratios (multiplier)
 float arm_angles[3] = {0.0,0.0,0.0}; //Current joint angles (units: degrees)
 float arm_cur_pos[2] = {0.0,0.0}; //Current end effector position (units: mm)
@@ -61,6 +61,7 @@ const uint16_t StepPeriodUs = 2000;// This period is the length of the delay bet
 
 unsigned long lastCtrlCmd;//last time a control command was received. Used for safe stop if control is lost
 unsigned long lastMotorUpdate;//last time the motors were updated
+unsigned long lastFeedback;//last time feedback was sent
 
 // Function prototypes 
 void loopHeartbeats(); //provide heartbeat to spark max controllers
@@ -70,12 +71,15 @@ void step_x0();//Step the axis0 motor when necessary
 void safety_timeout();//stop all motors if no control commands are received for a certain amount of time
 void EF_manip();//manipulate the end effector based on its states
 void update_motors();//send duty cycle control command to all motors
+void feedback();//send feedback (state) on usb serial line
+
+
 
 void setup() {
 
     //built_in teensy LED
     pinMode(LED_PIN, OUTPUT);
-    Serial.begin(115200);//serial monitor
+    Serial.begin(115200);//usb serial line
     digitalWrite(LED_PIN, HIGH);
 
     //blink to signify boot
@@ -89,12 +93,14 @@ void setup() {
   //   Initialize    //
   //-----------------//
 
+  //Setup CAN bus
     myCan.begin(); // Initialize CAN bus settings
     myCan.setBaudRate(1000000);
     myCan.setMaxMB(16);
     myCan.enableFIFO();
     myCan.enableFIFOInterrupt();
 
+  //Setup axis 0
     SPI.begin();//start SPI for stepper motor and encoders
     Axis_0.setChipSelectPin(CSPin);
     pinMode(StepPin, OUTPUT); // Drive the STEP and DIR pins low initially.
@@ -109,8 +115,12 @@ void setup() {
     Axis_0.setStepMode(HPSDStepMode::MicroStep32);    // Set the number of microsteps that correspond to one full step.
     Axis_0.enableDriver();      // Enable the motor outputs.
 
+
+  //Setup wrist LSS motors
     LSS::initBus(LSS_SERIAL, LSS_BAUD);
-    // Initialize wrist to zero position
+    top_lss.setMaxSpeed(100);
+    bottom_lss.setMaxSpeed(100);
+  
     top_lss.move(0);
     bottom_lss.move(0);
 
@@ -124,8 +134,6 @@ void setup() {
   threads.addThread(loopHeartbeats);
   //threads.addThread(test); 
 
-  
-  
   
   for(int e = 0; e < 3; e++)
   {
@@ -153,16 +161,18 @@ void setup() {
 
 
 void loop(){
-
+  
   if(Serial.available()){
     Serial.println("Serial Recieved...");
     cmd_check(); //check for command if data is in the serial buffer
   }
-    
 
+  safety_timeout();//stop all motors if no control commands are received for a certain amount of time (3 seconds)
   //step_x0();//move Axis_0 based on its state
+  //arm.IK_Execute();//execute the inverse kinematics for the arm (update arm speeds,angles,pos,etc..)
   EF_manip();//move end effector based on its states
-  update_motors();
+  update_motors();//Move the motors their given direction
+  feedback();//send feedback (state) on usb serial line
 }
 
 
@@ -238,12 +248,15 @@ void cmd_check(){
         }else if(args.size() == 5)//if in IK mode and correct number of arguments
         {
           axis0_state = args[2].toInt();//set axis0 state
-
-          //ik_plan(rel_target_x, rel_target_y);
-          Serial.println("trying to plan IK");
-
-          lastCtrlCmd = millis();//update last control command time
-        }else{
+          Serial.println("trying to plan IK...");
+          int ik_output = arm.IK_Plan(args[3].toFloat(), args[4].toFloat());//plan the IK movement
+          if(ik_output == 1)
+          {
+            lastCtrlCmd = millis();//update last control command time
+          }else{//IK Failed planning
+            Serial.println("IK planning failed");
+          }
+        }else{ 
           Serial.println("IK control error: invalid number of inputs");
         }
       }else if(args[1] == "endEffect")//arm,endEffect,...
@@ -284,25 +297,11 @@ void cmd_check(){
       } else if  (args[1] == "ping") { // "arm,ping"
 
         Serial.println("pong"); 
-      } else if  (args[1] == "time")  { // "arm,time,ms,axis"
-              
-        // int time = stoi(args_c[2].c_str()); // how long to run for
-        // int index = stoi(args_c[3].c_str()); // index of selected motor
-
-        // Serial.print("index: " + String(index));
-        // Serial.print(" time: " + String(time)); 
-
-        //turnTime(time,0.25F,index);
+      } else if  (args[1] == "time")  { 
+        //command not currently used
       } else if  (args[1] == "test") {
-
-        // Serial.println("testing begin:"); 
-        // // int angle = stoi(tokens[2]); 
-        // // int axis = stoi(tokens[3]); 
-        // // float duty = stof(tokens[4]);
-        // movebyAngle(10,2,0.1); 
-        // motorList[1].setDuty(0);    
-        // Serial.println("testing over"); 
-      } else if (args[1] == "get") {
+        //command not currently used
+      } else if (args[1] == "get") {//arm,get,duty ; arm,get,speed ; arm,get,angle
         if (args[2] == "duty") {
           Serial.println( "motor1duty: " + String(motorList[0].getSetDuty()) );
           Serial.println( "motor2duty: " + String(motorList[1].getSetDuty()) );
@@ -311,10 +310,9 @@ void cmd_check(){
           Serial.println( "motor1speed: " + String(motorList[0].getSpeed()) );
           Serial.println( "motor2speed: " + String(motorList[1].getSpeed()) );
           Serial.println( "motor3speed: " + String(motorList[2].getSpeed()) );
-        } else if (args[2] == "mode") {
-          Serial.println( "motor1mode: " + String(motorList[0].getControlMode()) );
-          Serial.println( "motor2mode: " + String(motorList[1].getControlMode()) );
-          Serial.println( "motor3mode: " + String(motorList[2].getControlMode()) );
+        }else if (args[2] == "angle")
+        {
+          //To Be Implemented
         }
 
       }
@@ -419,6 +417,14 @@ void loopHeartbeats(){
 }
 
 
+void feedback()
+{
+  if(millis() - lastFeedback > 2000)//Send out the arm's status every 2 seconds
+  {
+    Serial.printf("feedback,%f,%f,%f,%f\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt);
+  }
+}
+
 void safety_timeout(){
   if(millis() - lastCtrlCmd > 3000)//if no control commands are received for 3 seconds
   {
@@ -467,6 +473,8 @@ void EF_manip(){
 
 
 }
+
+
 
 
 

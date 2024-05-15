@@ -27,25 +27,7 @@
 
 
 
-void move_wrist(AstraWrist &wrist, bool revolve, bool invert, LSS &top_lss, LSS &bottom_lss){
-    float angle = wrist.step_size * 10;//convert to 0.1 degree increments
-    if(invert)
-    {
-        angle *= -1;//tilt left / revolve ccw
-    }
 
-    if(revolve){//if true, revolve (opposite absolute directions)
-        top_lss.moveRelative(angle*3);
-        bottom_lss.moveRelative(angle*3);
-    }else{
-        if(wrist.cur_tilt+angle > wrist.max_tilt || wrist.cur_tilt+angle < -wrist.max_tilt){
-            return;//max angle would be exceeded, don't move the motors
-        }
-        top_lss.moveRelative(angle);
-        bottom_lss.moveRelative(angle*-1);
-        wrist.cur_tilt += angle;
-    }
-}
 
 /**************************************************************************/
 /*
