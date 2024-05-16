@@ -454,20 +454,20 @@ void EF_manip(){
     //manipulate wrist tilt
     if(wrist_tilt_state >= 1)//right
     {
-      move_wrist(wrist, 0, 0, top_lss, bottom_lss);
+      arm.wrist.move_wrist(0, 0, top_lss, bottom_lss);
     }else if(wrist_tilt_state <= -1)//left
     {
-      move_wrist(wrist, 0, 1, top_lss, bottom_lss);
+      arm.wrist.move_wrist(0, 1, top_lss, bottom_lss);
     }
   }else if(wrist_revolve_state != 0)
   {
     //manipulate wrist revolve
     if(wrist_revolve_state >= 1)//cw
     {
-      move_wrist(wrist, 1, 0, top_lss, bottom_lss);
+      arm.wrist.move_wrist(1, 0, top_lss, bottom_lss);
     }else if(wrist_revolve_state <= -1)//ccw
     {
-      move_wrist(wrist, 1, 1, top_lss, bottom_lss);
+      arm.wrist.move_wrist(1, 1, top_lss, bottom_lss);
     }
   }
 
