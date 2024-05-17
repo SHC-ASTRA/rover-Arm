@@ -11,10 +11,6 @@ using namespace std;
 
 Servo myservo;
 
-
-
-
-
 #define LED_PIN 13 //Builtin LED pin for Teensy 4.1 (pin 25 for pi Pico)
 
 
@@ -75,37 +71,35 @@ void loop() {
 
     if (args[0] == "digit") {                          // Is looking for a command that looks like "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
         
-      clockTimer = millis();
-      EFcontrolReal = 1;
-        if(args[1] == "1")//close
+      if(args[1] == "ctrl")
+      {
+        clockTimer = millis();
+        EFcontrolReal = 1;
+        if(args[2] == "1")//close
         {
             EFcontrol(0, EFcontrolReal); // 0(close)-2500(open) with 1500 as stop
-        }else if(args[1] == "-1")//open
+        }else if(args[2] == "-1")//open
         {
             EFcontrol(2500, EFcontrolReal); // 0(close)-2500(open) with 1500 as stop
-        }else if(args[1] == "0")//stop
+        }else if(args[2] == "0")//stop
         {
             EFcontrol(1500, EFcontrolReal); // 0(close)-2500(open) with 1500 as stop
         }
 
-      Serial.println("controling");
-
-        
-    }else if (args[1] == "laser") {        // 
-      
-      
-      if(args[2] == "0")
-      {
-        //laser off
-      }else if(args[2] == "1")
-      {
-        //laser on
+        Serial.println("controling");
+      }else if (args[1] == "laser") {        // 
+        if(args[2] == "0")
+        {
+          //laser off
+        }else if(args[2] == "1")
+        {
+          //laser on
+        }
       }
 
-
-    }else if (token == "ping") {
+    }else if (args[0] == "ping") {
       Serial.println("pong");
-    } else if (token == "time") {
+    } else if (args[0] == "time") {
       Serial.println(millis());
     }
 
