@@ -64,8 +64,8 @@ class SerialRelay(Node):
                 if self.ser.in_waiting:
                     #self.mutex.release()
                     self.read_mcu()
-                #else:
-                    #.mutex.release()
+                else:
+                    time.sleep(0.05)
 
         except KeyboardInterrupt:
             #self.mutex.release()
