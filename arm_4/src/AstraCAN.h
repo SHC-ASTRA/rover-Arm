@@ -19,7 +19,7 @@ inline void Float2LEDec(float x, uint8_t (& buffer_data)[8])
 }
 
 
-inline void identifyDevice(FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> &Can0, int can_id)
+inline void identifyDevice(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &Can0, int can_id)
 {
   CAN_message_t msg; 
   msg.flags.extended = 1;
@@ -32,7 +32,7 @@ inline void identifyDevice(FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> &Can0, int 
 
 
 
-inline void sendDutyCycle(FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> &Can0, int can_id, float duty_cycle)
+inline void sendDutyCycle(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &Can0, int can_id, float duty_cycle)
 {
   CAN_message_t msg; 
   msg.flags.extended = 1;
@@ -42,7 +42,7 @@ inline void sendDutyCycle(FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> &Can0, int c
   Can0.write(msg);
 }
 
-inline void sendHeartbeat(FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> &Can0, int can_id)
+inline void sendHeartbeat(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &Can0, int can_id)
 {
   CAN_message_t msg; 
   msg.flags.extended = 1;

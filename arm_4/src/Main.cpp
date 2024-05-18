@@ -13,7 +13,7 @@ using namespace std;
 
 
 //Setting up for myCan line
-FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> myCan;
+FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> myCan;
 
 // Function prototypes 
 unsigned long lastBlink;
@@ -30,32 +30,33 @@ void setup() {
     //blink to signify boot
     delay(2000);
     digitalWrite(LED_PIN, LOW);
-    
+    /*
     myCan.begin();
     myCan.setBaudRate(1000000);
     myCan.setMaxMB(16);
     myCan.enableFIFO();
     myCan.enableFIFOInterrupt();
-  
+  */
 }
 
 
 
 void loop(){
   //blink the LED at 1Hz
-  if(millis() - lastBlink > 500){
+  if(millis() - lastBlink > 2000){
     lastBlink = millis();
     led = !led;
     digitalWrite(LED_PIN, led);
   }
   
-
+  /*
   sendHeartbeat(myCan, 1);
   delay(5);
   sendHeartbeat(myCan, 2);
   delay(5);
   sendHeartbeat(myCan, 3);
   delay(5);
+  */
 
 }
 

@@ -10,6 +10,9 @@
 #include "AstraSensors.h"
 #include "TeensyThreads.h"
 
+//test
+#include <CrashReport.h>
+
 using namespace std;
 
 
@@ -64,7 +67,7 @@ unsigned long lastMotorUpdate;//last time the motors were updated
 unsigned long lastFeedback;//last time feedback was sent
 
 // Function prototypes 
-void loopHeartbeats(); //provide heartbeat to spark max controllers
+void loopHeartbeats(); //heartbeat for sparkmax controllers
 void cmd_check(); //check for command if data is in the serial buffer
 void parseInput(const String input, std::vector<String>& args, char delim); // parse command to args[]
 void step_x0();//Step the axis0 motor when necessary
@@ -87,6 +90,16 @@ void setup() {
     digitalWrite(LED_PIN, LOW);
 
     Serial3.begin(115200);//Digit board serial line
+
+  // Check and print crash report if available
+  if (CrashReport) {
+    Serial.print(CrashReport);
+  }else
+  {
+    Serial.println("No crash report available");
+  }
+
+  //*((volatile uint32_t *)0) = 0;
 
 
   //-----------------//
@@ -131,7 +144,7 @@ void setup() {
  
   //Start heartbeat thread
   //TEMPORARY FIX, until we get a dedicated microcontroller for heartbeat propogation
-  //threads.addThread(loopHeartbeats);
+  threads.addThread(loopHeartbeats);
   //threads.addThread(test); 
 
   
@@ -196,7 +209,7 @@ void loop(){
 
 void cmd_check(){
   if (Serial.available()) {//double check just for good measure
-  serial.println("GOT COMMAND");
+  //Serial.println("GOT COMMAND");
 
   String command = Serial.readStringUntil('\n');  
   command.trim();
@@ -397,8 +410,8 @@ void step_x0()
 
 }
 
-
-void loopHeartbeats(){
+///*
+void loopHeartbeats(){//provide heartbeat for spark max controllers
     myCan.begin();
     myCan.setBaudRate(1000000);
     myCan.setMaxMB(16);
@@ -415,7 +428,7 @@ void loopHeartbeats(){
       threads.yield();
     }
 
-}
+}//*/
 
 
 void feedback()
