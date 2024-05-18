@@ -26,26 +26,26 @@ class SerialRelay(Node):
         self.subscriber = self.create_subscription(ControllerState, '/astra/arm/control', self.send_controls, 10)
 
         # Loop through all serial devices on the computer to check for the mcu
-        self.port = '/dev/ttyACM0'
-        #ports = SerialRelay.list_serial_ports()
-        #for port in ports:
-        #    try:
-        #        # connect and send a ping command
-        #        ser = serial.Serial(port, timeout=1)
-        #        ser.write(b"arm,ping\n")
-        #        response = ser.read_until("\n")
+        self.port = None
+        ports = SerialRelay.list_serial_ports()
+        for port in ports:
+            try:
+                # connect and send a ping command
+                ser = serial.Serial(port, timeout=1)
+                ser.write(b"arm,ping\n")
+                response = ser.read_until("\n")
 
                 # if pong is in response, then we are talking with the mcu
-        #        if b"pong" in response:
-        #            self.port = port
-        #            print(f"Found MCU at {self.port}!")
-        #            break
-        #    except:
-        #        pass
+                if b"pong" in response:
+                    self.port = port
+                    print(f"Found MCU at {self.port}!")
+                    break
+            except:
+                pass
         
-       # if self.port is None:
-           # print("Unable to find MCU... please make sure it is connected.")
-           # #sys.exit(1) TEMPORARY TEST, UNCOMMENT THIS LINE IN THE FUTURE
+        if self.port is None:
+           print("Unable to find MCU... please make sure it is connected.")
+           #sys.exit(1) TEMPORARY TEST, UNCOMMENT THIS LINE IN THE FUTURE
         
         self.ser = serial.Serial(self.port, 115200)
 
