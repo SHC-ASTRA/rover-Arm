@@ -422,6 +422,7 @@ void feedback()
   if(millis() - lastFeedback > 2000)//Send out the arm's status every 2 seconds
   {
     Serial.printf("feedback,%f,%f,%f,%f\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt);
+    lastFeedback = millis();
   }
 }
 
