@@ -61,9 +61,10 @@ class SerialRelay(Node):
                 # Check the mcu for updates
                 self.mutex.acquire()
                 if self.ser.in_waiting:
+                    self.mutex.release()
                     self.read_mcu()
-
-                self.mutex.release()
+                else:
+                    self.mutex.release()
 
         except KeyboardInterrupt:
             self.mutex.release()
@@ -72,7 +73,7 @@ class SerialRelay(Node):
 
     def read_mcu(self):
         try:
-            #self.mutex.acquire()
+            self.mutex.acquire()
             output = str(self.ser.readline(), "utf8")
             if output:
                 print(f"[MCU] {output}", end="")
