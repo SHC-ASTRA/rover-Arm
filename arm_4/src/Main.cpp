@@ -51,11 +51,11 @@ void loop(){
   
 
   sendHeartbeat(myCan, 1);
-  sleep(5);
+  delay(5);
   sendHeartbeat(myCan, 2);
-  sleep(5);
+  delay(5);
   sendHeartbeat(myCan, 3);
-  sleep(5);
+  delay(5);
 
 }
 
