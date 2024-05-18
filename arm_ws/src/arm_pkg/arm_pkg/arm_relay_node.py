@@ -49,6 +49,8 @@ class SerialRelay(Node):
         
         self.ser = serial.Serial(self.port, 115200)
 
+        self.mutex = threading.Lock()
+
     def run(self):
         # This thread makes all the update processes run in the background
         thread = threading.Thread(target=rclpy.spin, args={self}, daemon=True)
@@ -57,8 +59,11 @@ class SerialRelay(Node):
         try:
             while rclpy.ok():
                 # Check the mcu for updates
+                self.mutex.acquire()
                 if self.ser.in_waiting:
                     self.read_mcu()
+
+                self.mutex.release()
 
         except KeyboardInterrupt:
             sys.exit(0)
@@ -66,6 +71,7 @@ class SerialRelay(Node):
 
     def read_mcu(self):
         try:
+            self.mutex.acquire()
             output = str(self.ser.readline(), "utf8")
             if output:
                 print(f"[MCU] {output}", end="")
@@ -78,18 +84,22 @@ class SerialRelay(Node):
                 # Publish data
                 self.output_publisher.publish(msg)
                 #print(f"[MCU] Publishing: {msg}")
+
         except serial.SerialException:
             pass
+        finally:
+            self.mutex.release()
 
     def send_controls(self, msg):
         command = ""
         ef_cmd = "" #end effector command to be apended
-
+        self.mutex.acquire()
         if(msg.b):#If B button: send ESTOP command
             command = "arm,stop\n"
             self.ser.write(bytes(command, "utf8"))#Send command to MCU
             print(f"[Wrote] {command}", end="")#Echo command to console
 
+            self.mutex.release()#Release mutex lock
             return 
         
         if(msg.plus):#Turn EF laser on
@@ -128,7 +138,8 @@ class SerialRelay(Node):
 
             command = ef_cmd + "\n"
             self.ser.write(bytes(command, "utf8"))
-            print(f"[Wrote] {command}", end="")            
+            print(f"[Wrote] {command}", end="")         
+            self.mutex.release()   
             return
         else:
             ef_cmd = "endEffect,ctrl,"
@@ -208,6 +219,7 @@ class SerialRelay(Node):
 
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")
+            self.mutex.release()
             return
         
 
