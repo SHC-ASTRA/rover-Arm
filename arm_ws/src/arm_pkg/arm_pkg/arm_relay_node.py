@@ -66,6 +66,7 @@ class SerialRelay(Node):
                 self.mutex.release()
 
         except KeyboardInterrupt:
+            self.mutex.release()
             sys.exit(0)
         
 
@@ -193,6 +194,8 @@ class SerialRelay(Node):
             command += "\n"
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")
+
+            self.mutex.release()
             return
         else:#Else normal (IK) control mode
             #First, ensure control mode is set to IK on the MCU
