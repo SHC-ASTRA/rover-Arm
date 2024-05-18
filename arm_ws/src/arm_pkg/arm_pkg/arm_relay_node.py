@@ -72,7 +72,7 @@ class SerialRelay(Node):
 
     def read_mcu(self):
         try:
-            self.mutex.acquire()
+            #self.mutex.acquire()
             output = str(self.ser.readline(), "utf8")
             if output:
                 print(f"[MCU] {output}", end="")
@@ -87,6 +87,7 @@ class SerialRelay(Node):
                 #print(f"[MCU] Publishing: {msg}")
 
         except serial.SerialException:
+            self.mutex.release()
             pass
         finally:
             self.mutex.release()
