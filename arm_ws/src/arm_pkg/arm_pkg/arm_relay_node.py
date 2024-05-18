@@ -59,7 +59,7 @@ class SerialRelay(Node):
         try:
             while rclpy.ok():
                 # Check the mcu for updates
-                rclpy.spin_once(self, timeout_sec=0.1)
+                rclpy.spin_once(self, timeout_sec=0.200)
                 #self.mutex.acquire()
                 if self.ser.in_waiting:
                     #self.mutex.release()
