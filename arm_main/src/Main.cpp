@@ -131,7 +131,7 @@ void setup() {
  
   //Start heartbeat thread
   //TEMPORARY FIX, until we get a dedicated microcontroller for heartbeat propogation
-  threads.addThread(loopHeartbeats);
+  //threads.addThread(loopHeartbeats);
   //threads.addThread(test); 
 
   
@@ -196,6 +196,7 @@ void loop(){
 
 void cmd_check(){
   if (Serial.available()) {//double check just for good measure
+  serial.println("GOT COMMAND");
 
   String command = Serial.readStringUntil('\n');  
   command.trim();
