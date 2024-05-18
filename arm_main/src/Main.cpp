@@ -437,6 +437,11 @@ void feedback()
   {
     Serial.printf("feedback,%f,%f,%f,%f\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt);
     lastFeedback = millis();
+    if (CrashReport) {
+    Serial.print(CrashReport);
+    }else{
+    Serial.println("No crash report available");
+    }
   }
 }
 
