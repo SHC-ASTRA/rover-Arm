@@ -49,31 +49,32 @@ class SerialRelay(Node):
         
         self.ser = serial.Serial(self.port, 115200)
 
-        self.mutex = threading.Lock()
+        #self.mutex = threading.Lock()
 
     def run(self):
         # This thread makes all the update processes run in the background
-        thread = threading.Thread(target=rclpy.spin, args={self}, daemon=True)
-        thread.start()
+        #thread = threading.Thread(target=rclpy.spin, args={self}, daemon=True)
+        #thread.start()
         
         try:
             while rclpy.ok():
                 # Check the mcu for updates
-                self.mutex.acquire()
+                rclpy.spin_once(self.node, timeout_sec=0.1)
+                #self.mutex.acquire()
                 if self.ser.in_waiting:
-                    self.mutex.release()
+                    #self.mutex.release()
                     self.read_mcu()
-                else:
-                    self.mutex.release()
+                #else:
+                    #.mutex.release()
 
         except KeyboardInterrupt:
-            self.mutex.release()
+            #self.mutex.release()
             sys.exit(0)
         
 
     def read_mcu(self):
         try:
-            self.mutex.acquire()
+            #self.mutex.acquire()
             output = str(self.ser.readline(), "utf8")
             if output:
                 print(f"[MCU] {output}", end="")
@@ -88,21 +89,21 @@ class SerialRelay(Node):
                 #print(f"[MCU] Publishing: {msg}")
 
         except serial.SerialException:
-            self.mutex.release()
+            #self.mutex.release()
             pass
-        finally:
-            self.mutex.release()
+        #finally:
+            #self.mutex.release()
 
     def send_controls(self, msg):
         command = ""
         ef_cmd = "" #end effector command to be apended
-        self.mutex.acquire()
+        #self.mutex.acquire()
         if(msg.b):#If B button: send ESTOP command
             command = "arm,stop\n"
             self.ser.write(bytes(command, "utf8"))#Send command to MCU
             print(f"[Wrote] {command}", end="")#Echo command to console
 
-            self.mutex.release()#Release mutex lock
+            #self.mutex.release()#Release mutex lock
             return 
         
         if(msg.plus):#Turn EF laser on
@@ -142,7 +143,7 @@ class SerialRelay(Node):
             command = ef_cmd + "\n"
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")         
-            self.mutex.release()   
+            #self.mutex.release()   
             return
         else:
             ef_cmd = "endEffect,ctrl,"
@@ -197,7 +198,7 @@ class SerialRelay(Node):
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")
 
-            self.mutex.release()
+            #self.mutex.release()
             return
         else:#Else normal (IK) control mode
             #First, ensure control mode is set to IK on the MCU
@@ -224,7 +225,7 @@ class SerialRelay(Node):
 
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")
-            self.mutex.release()
+            #self.mutex.release()
             return
         
 
