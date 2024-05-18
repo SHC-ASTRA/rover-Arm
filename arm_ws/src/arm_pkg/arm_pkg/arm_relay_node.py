@@ -57,25 +57,29 @@ class SerialRelay(Node):
         try:
             while rclpy.ok():
                 # Check the mcu for updates
-                self.read_mcu()
+                if self.ser.in_waiting:
+                    self.read_mcu()
 
         except KeyboardInterrupt:
             sys.exit(0)
         
 
     def read_mcu(self):
-        output = str(self.ser.readline(), "utf8")
-        if output:
-            print(f"[MCU] {output}", end="")
-            # Create a string message object
-            msg = String()
+        try:
+            output = str(self.ser.readline(), "utf8")
+            if output:
+                print(f"[MCU] {output}", end="")
+                # Create a string message object
+                msg = String()
 
-            # Set message data
-            msg.data = output
+                # Set message data
+                msg.data = output
 
-            # Publish data
-            self.output_publisher.publish(msg)
-            #print(f"[MCU] Publishing: {msg}")
+                # Publish data
+                self.output_publisher.publish(msg)
+                #print(f"[MCU] Publishing: {msg}")
+        except serial.SerialException:
+            pass
 
     def send_controls(self, msg):
         command = ""
