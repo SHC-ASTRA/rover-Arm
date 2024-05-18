@@ -53,13 +53,13 @@ class SerialRelay(Node):
 
     def run(self):
         # This thread makes all the update processes run in the background
-        #thread = threading.Thread(target=rclpy.spin, args={self}, daemon=True)
-        #thread.start()
+        thread = threading.Thread(target=rclpy.spin, args={self}, daemon=True)
+        thread.start()
         
         try:
             while rclpy.ok():
                 # Check the mcu for updates
-                rclpy.spin_once(self, timeout_sec=0.1)
+                #rclpy.spin_once(self, timeout_sec=0.1)
                 #self.mutex.acquire()
                 if self.ser.in_waiting:
                     #self.mutex.release()
