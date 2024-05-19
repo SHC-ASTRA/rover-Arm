@@ -107,16 +107,16 @@ class SerialRelay(Node):
             return 
         
         if(msg.plus):#Turn EF laser on
-            command = "endEffect,laser,1\n"
+            command = "arm,endEffect,laser,1\n"
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")
         elif(msg.minus):#Turn EF laser off
-            command = "endEffect,laser,0\n"
+            command = "arm,endEffect,laser,0\n"
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")
         
         if(msg.rb):#If RB button: End Effector control mode
-            ef_cmd = "endEffect,ctrl,"
+            ef_cmd = "arm,endEffect,ctrl,"
             
             if(msg.lt >= 0.5):#If LT button: Open end effector
                 ef_cmd += "-1,"
@@ -146,7 +146,7 @@ class SerialRelay(Node):
             #self.mutex.release()   
             return
         else:
-            ef_cmd = "endEffect,ctrl,"
+            ef_cmd = "arm,endEffect,ctrl,"
             if(msg.lt >= 0.5):
                 ef_cmd += "-1,0,0"
             elif(msg.rt >= 0.5):

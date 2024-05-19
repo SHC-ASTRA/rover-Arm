@@ -113,7 +113,7 @@ void loop() {
 
 void EFcontrol(float speed, bool &moveT_F){
   if(moveT_F){
-  myservo.writeMicroseconds(speed);
+    myservo.writeMicroseconds(speed);
   }
 }
 
