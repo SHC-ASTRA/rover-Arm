@@ -58,14 +58,16 @@ bool ik_mode = false; // Inverse kinematics control mode
 int wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
 int wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
 
-int axis0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
-const uint8_t CSPin = 0;
-const uint16_t StepPeriodUs = 2000;// This period is the length of the delay between steps, which controls the stepper motor's speed
+//int axis0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
+int x0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
+int x0_update_time_ms = 1000;//update time for axis 0
+Servo axis0; // Axis 0 servo object
+
 
 unsigned long lastCtrlCmd;//last time a control command was received. Used for safe stop if control is lost
 unsigned long lastMotorUpdate;//last time the motors were updated
 unsigned long lastFeedback;//last time feedback was sent
-unsigned long lastStep;//last time axis 0 was stepped
+unsigned long lastx0;//last time axis 0 was updated
 unsigned long lastWrist;//last time the wrist was moved
 int rotate_time_ms = 250;
 
@@ -73,7 +75,7 @@ int rotate_time_ms = 250;
 void loopHeartbeats(); //heartbeat for sparkmax controllers
 void cmd_check(); //check for command if data is in the serial buffer
 void parseInput(const String input, std::vector<String>& args, char delim); // parse command to args[]
-//void step_x0();//Step the axis0 motor when necessary
+void update_x0();//Move axis 0 based on its state
 void safety_timeout();//stop all motors if no control commands are received for a certain amount of time
 void EF_manip();//manipulate the end effector based on its states
 void update_motors();//send duty cycle control command to all motors
@@ -118,17 +120,7 @@ void setup() {
     myCan.enableFIFOInterrupt();
 
   //Setup axis 0
-  /*
-    SPI.begin();//start SPI for stepper motor and encoders
-    Axis_0.setChipSelectPin(CSPin);
-    delay(1);     // Give the driver some time to power up.
-    Axis_0.resetSettings();    // Reset the driver to its default settings and clear latched status conditions.
-    Axis_0.clearStatus();     
-    Axis_0.setDecayMode(HPSDDecayMode::AutoMixed);     // Select auto mixed decay.  TI's DRV8711 documentation recommends this mode for most applications, and we find that it usually works well.
-    Axis_0.setCurrentMilliamps36v4(1000);     // Set the current limit. You should change the number here to an appropriate value for your particular system.
-    Axis_0.setStepMode(HPSDStepMode::MicroStep32);    // Set the number of microsteps that correspond to one full step.
-    Axis_0.enableDriver();      // Enable the motor outputs.*/
-
+    axis0.attach(19);
 
   //Setup wrist LSS motors
     LSS::initBus(LSS_SERIAL, LSS_BAUD);
@@ -181,7 +173,7 @@ void loop(){
   }
 
   safety_timeout();//stop all motors if no control commands are received for a certain amount of time (3 seconds)
-  //step_x0();//move Axis_0 based on its state
+  update_x0();//move Axis_0 based on its state
   //arm.IK_Execute();//execute the inverse kinematics for the arm (update arm speeds,angles,pos,etc..)
   EF_manip();//move end effector based on its states
   update_motors();//Move the motors their given direction
@@ -240,7 +232,7 @@ void cmd_check(){
           Serial.println("Manual control disabled while in IK mode");
         }else if(args.size() == 7)//if not in IK mode and got enough arguments for all joints
         {
-          axis0_state = args[2].toInt();//set axis0 state
+          x0_state = args[2].toInt();//set axis0 state
           
           Serial.println("trying to set motor duty cycles");
 
@@ -261,7 +253,7 @@ void cmd_check(){
           Serial.println("IK control disabled while in manual mode");
         }else if(args.size() == 5)//if in IK mode and correct number of arguments
         {
-          axis0_state = args[2].toInt();//set axis0 state
+          x0_state = args[2].toInt();//set axis0 state
           Serial.println("trying to plan IK...");
           int ik_output = arm.IK_Plan(args[3].toFloat(), args[4].toFloat());//plan the IK movement
           if(ik_output == 1)
@@ -275,25 +267,30 @@ void cmd_check(){
         }
       }else if(args[1] == "endEffect")//arm,endEffect,...
       {
-        if(args[2] == "ctrl")//arm,endEffect,ctrl,gripper_state,tilt_state,rotation_state,rotate_time_in_ms
+        if(args.size() != 6)
         {
-          Serial3.printf("digit,ctrl,%d\n",args[3].toInt()); //send gripper control command to digit board
-          //Serial.printf("digit,ctrl,%d\n",args[3].toInt());
-          wrist_tilt_state = args[4].toInt();//set wrist tilt state
-          wrist_revolve_state = args[5].toInt();//set wrist revolve state
+          Serial.println("Invalid number of args for endEffect command");
+        }else
+        {
+          if(args[2] == "ctrl")//arm,endEffect,ctrl,gripper_state,tilt_state,rotation_state
+          {
+            Serial3.printf("digit,ctrl,%d\n",args[3].toInt()); //send gripper control command to digit board
+            //Serial.printf("digit,ctrl,%d\n",args[3].toInt());
+            wrist_tilt_state = args[4].toInt();//set wrist tilt state
+            wrist_revolve_state = args[5].toInt();//set wrist revolve state
 
-          //rotate_time_ms = args[6].toInt();//set the time for the wrist movement, this should probably just be used for testing
-          lastWrist = millis();//update last wrist command time
+            //rotate_time_ms = args[6].toInt();//set the time for the wrist movement, this should probably just be used for testing
+            lastWrist = millis();//update last wrist command time
 
-        }else if(args[2] == "laser"){
-          Serial3.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
-          //Serial.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
+          }else if(args[2] == "laser"){
+            Serial3.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
+            //Serial.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
+          }
         }
       }else if (args[1] == "axis"){ // "arm,axis,axis_#,duty_cycle" // controls a single axis at a time (set direction)// FOR TESTING ONLY
 
         if(args[2] == "0"){//different control scheme for axis0
-
-        axis0_state = args[3].toInt();//set state of axis 0
+          x0_state = args[3].toInt();//set state of axis 0
 
         }else if ((args[2].toInt() >= 1) && (args[2].toInt()<= 3)){//ensure the axis is a valid index
           int motor_index = args[2].toInt() - 1; //get the motor id (-1 for index)
@@ -301,6 +298,7 @@ void cmd_check(){
           motorList[motor_index].setDuty(args[3].toFloat());
           //sendDutyCycle(myCan, motorList[motor_index].getID(), motorList[motor_index].getDuty()); // update motors with current duty cycle
         }
+        lastCtrlCmd = millis();//update last control command time
 
       }else if(args[1] == "stop") { // "arm,stop" //stops movement on all axis
         Serial.println("Stopping all motors");
@@ -310,7 +308,7 @@ void cmd_check(){
           sendDutyCycle(myCan, motorList[j].getID(), 0.0); // stop all motors
         }
         
-        axis0_state = 0; //axis 0 movement to stop
+        x0_state = 0; //axis 0 movement to stop
 
       } else if  (args[1] == "ping") { // "arm,ping"
 
@@ -332,7 +330,14 @@ void cmd_check(){
         {
           //To Be Implemented
         }
-
+      }else if (args[1] == "aux")
+      {
+        if(args[2] == "lynx_reset")
+        {
+          Serial.println("Resetting Lynxmotion LSS bus");
+          top_lss.reset();
+          bottom_lss.reset();
+        }
       }
 
       
@@ -394,24 +399,25 @@ void parseInput(const String input, std::vector<String>& args, char delim) {
     // output is via vector<String>& args
 }
 
-/*
-void step_x0()
+
+void update_x0()
 {
-  if(axis0_state != 0 && ((millis() - lastStep)/1000 >= StepPeriodUs))//if not stop
+  if(millis() - lastCtrlCmd <= x0_update_time_ms)
   {
-    delayMicroseconds(1);//need delay before & after to set direction
-    if(axis0_state >= 1)//positive for cw
-      {Axis_0.setDirection(1);}//input 1 results in cw motion
-    else //negative for ccw
-      {Axis_0.setDirection(0);}//convert the -1 input to 0 for ccw motion
-    delayMicroseconds(1);
-
-
-    Axis_0.step(); // Step the motor
-    lastStep = millis();  // Record the time of the step
+    if(x0_state == 0)
+    {
+      axis0.writeMicroseconds(1500);//stop
+    }else if(x0_state == 1)
+    {
+      axis0.writeMicroseconds(1100);//cw
+    }else if(x0_state == -1)
+    {
+      axis0.writeMicroseconds(1800);//ccw
+    }
+  }else{
+    axis0.writeMicroseconds(1500);//stop
   }
-
-}*/
+}
 
 ///*
 void loopHeartbeats(){//provide heartbeat for spark max controllers
@@ -438,7 +444,7 @@ void feedback()
 {
   if(millis() - lastFeedback > 2000)//Send out the arm's status every 2 seconds
   {
-    Serial.printf("feedback,%f,%f,%f,%d,%d,%d\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt,wrist_revolve_state,wrist_tilt_state);
+    Serial.printf("feedback,%f,%f,%f,%d,%d,%d,%d\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt,wrist_revolve_state,wrist_tilt_state,x0_state);
     lastFeedback = millis();
     /*
     if (CrashReport) {
@@ -457,7 +463,7 @@ void safety_timeout(){
       motorList[m].setDuty(0);//stop all motors
       sendDutyCycle(myCan, motorList[m].getID(), 0);//send stop command to all motors
     }
-    axis0_state = 0;//stop axis 0
+    x0_state = 0;//stop axis 0
 
     arm.ik_obj.active = false;//disable IK objective to stop IK movement
   }
