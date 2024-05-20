@@ -19,8 +19,8 @@
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 
-#define LSS_BAUD    (LSS_DefaultBaud)
-#define LSS_SERIAL    (Serial7)
+//#define LSS_BAUD    (LSS_DefaultBaud)
+//#define LSS_SERIAL    (Serial7)
 
 #define AS5047P_CHIP_SELECT_PORT 10 
 #define AS5047P_CUSTOM_SPI_BUS_SPEED 100000

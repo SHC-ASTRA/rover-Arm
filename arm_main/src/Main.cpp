@@ -15,6 +15,8 @@
 
 using namespace std;
 
+#define LSS_BAUD    (LSS_DefaultBaud)
+#define LSS_SERIAL    (Serial7)
 
 #define LED_PIN 13 //Builtin LED pin for Teensy 4.1 (pin 25 for pi Pico)
 
@@ -38,7 +40,7 @@ AstraMotors Axis2(2, 1, false, 50, 0.50F);//20:1 cycloidal
 AstraMotors Axis3(3, 1, false, 50, 0.50F);//12:1 cycloidal
 AstraMotors motorList[3] = {Axis1, Axis2, Axis3};
 
-AstraWrist wrist(90,0.5);//Wrist object, set max tilt to +-90 degrees
+AstraWrist wrist(90,20);//Wrist object, set max tilt to +-90 degrees
 
 LSS top_lss = LSS(1);     //top LSS on wrist
 LSS bottom_lss = LSS(2);  //bottom LSS on wrist
@@ -64,6 +66,8 @@ unsigned long lastCtrlCmd;//last time a control command was received. Used for s
 unsigned long lastMotorUpdate;//last time the motors were updated
 unsigned long lastFeedback;//last time feedback was sent
 unsigned long lastStep;//last time axis 0 was stepped
+unsigned long lastWrist;//last time the wrist was moved
+int rotate_time_ms = 250;
 
 // Function prototypes 
 void loopHeartbeats(); //heartbeat for sparkmax controllers
@@ -74,6 +78,7 @@ void safety_timeout();//stop all motors if no control commands are received for 
 void EF_manip();//manipulate the end effector based on its states
 void update_motors();//send duty cycle control command to all motors
 void feedback();//send feedback (state) on usb serial line
+void move_wrist(bool revolve, bool invert);//move the wrist based on its states
 
 
 
@@ -130,8 +135,8 @@ void setup() {
     top_lss.setMaxSpeed(100);
     bottom_lss.setMaxSpeed(100);
   
-    top_lss.move(0);
-    bottom_lss.move(0);
+    //top_lss.move(0);
+    //bottom_lss.move(0);
 
 
   //--------------------//
@@ -270,16 +275,19 @@ void cmd_check(){
         }
       }else if(args[1] == "endEffect")//arm,endEffect,...
       {
-        if(args[2] == "ctrl")//arm,endEffect,ctrl,gripper_state,tilt_state,rotation_state
+        if(args[2] == "ctrl")//arm,endEffect,ctrl,gripper_state,tilt_state,rotation_state,rotate_time_in_ms
         {
           Serial3.printf("digit,ctrl,%d\n",args[3].toInt()); //send gripper control command to digit board
-          Serial.printf("digit,ctrl,%d\n",args[3].toInt());
+          //Serial.printf("digit,ctrl,%d\n",args[3].toInt());
           wrist_tilt_state = args[4].toInt();//set wrist tilt state
           wrist_revolve_state = args[5].toInt();//set wrist revolve state
 
+          //rotate_time_ms = args[6].toInt();//set the time for the wrist movement, this should probably just be used for testing
+          lastWrist = millis();//update last wrist command time
+
         }else if(args[2] == "laser"){
           Serial3.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
-          Serial.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
+          //Serial.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
         }
       }else if (args[1] == "axis"){ // "arm,axis,axis_#,duty_cycle" // controls a single axis at a time (set direction)// FOR TESTING ONLY
 
@@ -430,7 +438,7 @@ void feedback()
 {
   if(millis() - lastFeedback > 2000)//Send out the arm's status every 2 seconds
   {
-    Serial.printf("feedback,%f,%f,%f,%f\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt);
+    Serial.printf("feedback,%f,%f,%f,%d,%d,%d\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt,wrist_revolve_state,wrist_tilt_state);
     lastFeedback = millis();
     /*
     if (CrashReport) {
@@ -455,7 +463,7 @@ void safety_timeout(){
   }
 }
 
-
+/*
 void EF_manip(){
   //manipulate the end effector based on its states
   //wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
@@ -464,27 +472,78 @@ void EF_manip(){
   if(wrist_tilt_state != 0 && wrist_revolve_state != 0)//give preference to revolve
   {
     wrist_tilt_state = 0;//stop tilt if revolve is active
+    Serial.println("Both wrist tilt and revolve are active, stopping tilt");
   }
   if(wrist_tilt_state != 0)
   {
     //manipulate wrist tilt
     if(wrist_tilt_state >= 1)//right
     {
-      arm.wrist.move_wrist(0, 0, top_lss, bottom_lss);
+      //arm.wrist.move_wrist(0, 0, top_lss, bottom_lss);
+      move_wrist(0, 0);
+      Serial.println("Moving wrist right");
     }else if(wrist_tilt_state <= -1)//left
     {
-      arm.wrist.move_wrist(0, 1, top_lss, bottom_lss);
+      //arm.wrist.move_wrist(0, 1, top_lss, bottom_lss);
+      move_wrist(0, 1);
+      Serial.println("Moving wrist left");
     }
   }else if(wrist_revolve_state != 0)
   {
     //manipulate wrist revolve
     if(wrist_revolve_state >= 1)//cw
     {
-      arm.wrist.move_wrist(1, 0, top_lss, bottom_lss);
+      //arm.wrist.move_wrist(1, 0, top_lss, bottom_lss);
+      move_wrist(1, 0);
     }else if(wrist_revolve_state <= -1)//ccw
     {
-      arm.wrist.move_wrist(1, 1, top_lss, bottom_lss);
+      move_wrist(1, 1);
+      //arm.wrist.move_wrist(1, 1, top_lss, bottom_lss);
     }
+  }else if(wrist_revolve_state == 0 && wrist_tilt_state == 0)
+  {
+    //stop all wrist movement
+    top_lss.move(0);;
+    bottom_lss.move(0);
+  }
+
+
+}
+*/
+
+void EF_manip(){
+  //manipulate the end effector based on its states
+  //wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
+  //wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
+  if ((millis() - lastWrist) <= rotate_time_ms) {
+    if(wrist_tilt_state != 0 && wrist_revolve_state != 0)//give preference to revolve
+    {
+      wrist_tilt_state = 0;//stop tilt if revolve is active
+    }
+    if(wrist_tilt_state != 0)
+    {
+      //manipulate wrist tilt
+      if(wrist_tilt_state >= 1)//right
+      {
+        move_wrist(0, 0);
+      }else if(wrist_tilt_state <= -1)//left
+      {
+        move_wrist(0, 1);
+      }
+    }else if(wrist_revolve_state != 0)
+    {
+      //manipulate wrist revolve
+      if(wrist_revolve_state >= 1)//cw
+      {
+        move_wrist(1, 0);
+      }else if(wrist_revolve_state <= -1)//ccw
+      {
+        move_wrist(1, 1);
+      }
+    } 
+  } else { 
+    top_lss.wheelRPM(0); 
+    bottom_lss.wheelRPM(0); 
   }
 
 }
@@ -502,4 +561,49 @@ void update_motors()
     lastMotorUpdate = millis();
   }
 }
+
+/*
+void move_wrist(bool revolve, bool invert){
+    float angle = wrist.step_size * 10;//convert to 0.1 degree increments
+    Serial.println("RUNNING MOVE_WRIST");
+    if(invert)
+    {
+        angle *= -1;//tilt left / revolve ccw
+    }
+
+    if(revolve){//if true, revolve (opposite absolute directions)
+        top_lss.moveRelative(angle*3);
+        bottom_lss.moveRelative(angle*3);
+    }else{
+        if(wrist.cur_tilt + angle > wrist.max_tilt || wrist.cur_tilt+angle < (wrist.max_tilt * -1)){
+            return;//max angle would be exceeded, don't move the motors
+        }
+        top_lss.moveRelative(angle);
+        bottom_lss.moveRelative(angle*-1);
+        wrist.cur_tilt += angle;
+    }
+}
+*/
+
+void move_wrist(bool revolve, bool invert){
+    int speed = wrist.rpm;//convert to 0.1 degree increments
+    if(invert)
+    {
+        speed *= -1;//tilt left / revolve ccw
+    }
+
+    if(revolve){//if true, revolve (opposite absolute directions)
+        top_lss.wheelRPM(speed);
+        bottom_lss.wheelRPM(speed);
+    }else{
+        /*if(wrist.cur_tilt + angle > wrist.max_tilt || wrist.cur_tilt+angle < (wrist.max_tilt -1)){
+            return;//max angle would be exceeded, don't move the motors
+        }*/
+        top_lss.wheelRPM(speed*.25);
+        bottom_lss.wheelRPM(speed*-1*.25);
+        //wrist.cur_tilt += speed;
+    }
+} 
+
+
 

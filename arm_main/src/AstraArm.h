@@ -18,11 +18,11 @@ class AstraWrist{
     public: 
         int cur_tilt; //Current tilt angle of the wrist (units: degrees)
         int max_tilt; //Current max tilt angle of the wrist (in both directions) (units: degrees)
-        float step_size; //Step size for tilting/revolving the wrist (units: degrees per iteration) 
+        int rpm; //Step size for tilting/revolving the wrist (units: degrees per iteration) 
 
         AstraWrist(); //default constructor
-        AstraWrist(int max_tilt, float step_size); //constructor
-        void move_wrist(bool revolve, bool invert, LSS &top_lss, LSS &bottom_lss);
+        AstraWrist(int max_tilt, int rpm); //constructor
+        //void move_wrist(bool revolve, bool invert, LSS &top_lss, LSS &bottom_lss);
 };
 
 class AstraArm{

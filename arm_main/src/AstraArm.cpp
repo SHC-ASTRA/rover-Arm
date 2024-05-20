@@ -21,15 +21,16 @@ Objective::Objective(float target_pos[2], float target_angles[3], float motor_sp
 
 
 AstraWrist::AstraWrist(){}; //default constructor
-AstraWrist::AstraWrist(int max_tilt, float step_size){
+AstraWrist::AstraWrist(int max_tilt, int rpm){
     this->cur_tilt = 0;
     this->max_tilt = max_tilt;
-    this->step_size = step_size;
+    this->rpm = rpm;
 };
 
-
+/*
 void AstraWrist::move_wrist(bool revolve, bool invert, LSS &top_lss, LSS &bottom_lss){
     float angle = step_size * 10;//convert to 0.1 degree increments
+    Serial.println("RUNNING MOVE_WRIST");
     if(invert)
     {
         angle *= -1;//tilt left / revolve ccw
@@ -46,7 +47,7 @@ void AstraWrist::move_wrist(bool revolve, bool invert, LSS &top_lss, LSS &bottom
         bottom_lss.moveRelative(angle*-1);
         cur_tilt += angle;
     }
-}
+}*/
 
 
 AstraArm::AstraArm(){}; //Default constructor
