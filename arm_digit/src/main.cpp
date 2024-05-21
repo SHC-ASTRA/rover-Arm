@@ -12,6 +12,7 @@ using namespace std;
 Servo myservo;
 
 #define LED_PIN 13 //Builtin LED pin for Teensy 4.1 (pin 25 for pi Pico)
+#define LASER_PIN 8 //GPIO 8
 
 
 unsigned long clockTimer = millis();
@@ -32,6 +33,8 @@ void setup() {
     digitalWrite(LED_PIN, LOW);
 
     //pinMode(20, INPUT_PULLUP); //Needed for IMU to work on PCB <-this line is from core rover, but leaving it here
+    pinMode(LASER_PIN, OUTPUT); //GPIO 8
+    digitalWrite(LASER_PIN, LOW);
 
     myservo.attach(19); //GPIO 19, Physically pin 25
   
@@ -90,10 +93,10 @@ void loop() {
       }else if (args[1] == "laser") {        // 
         if(args[2] == "0")
         {
-          //laser off
+          digitalWrite(LASER_PIN, LOW);
         }else if(args[2] == "1")
         {
-          //laser on
+          digitalWrite(LASER_PIN, HIGH);
         }
       }
 
