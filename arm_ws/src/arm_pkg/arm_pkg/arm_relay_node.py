@@ -57,7 +57,7 @@ class SerialRelay(Node):
 
     def run(self):
         # This thread makes all the update processes run in the background
-        thread = threading.Thread(target=rclpy.spin, args={self}, daemon=True)
+        thread = threading.Thread(target=rclpy.spin, args={self})
         thread.start()
         
         try:

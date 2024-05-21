@@ -60,7 +60,7 @@ int wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
 
 //int axis0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
 int x0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
-int x0_update_time_ms = 1000;//update time for axis 0
+int x0_update_time_ms = 250;//update time for axis 0
 Servo axis0; // Axis 0 servo object
 
 
