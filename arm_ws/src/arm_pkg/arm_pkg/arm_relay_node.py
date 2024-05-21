@@ -15,6 +15,7 @@ from interfaces_pkg.msg import ArmState
 
 
 serial_pub = None
+thread = None
 
 
 class SerialRelay(Node):
@@ -57,6 +58,7 @@ class SerialRelay(Node):
 
     def run(self):
         # This thread makes all the update processes run in the background
+        global thread
         thread = threading.Thread(target=rclpy.spin, args={self})
         thread.start()
         
@@ -73,6 +75,7 @@ class SerialRelay(Node):
 
         except KeyboardInterrupt:
             #self.mutex.release()
+            serial_pub.ser.close()
             sys.exit(0)
         
 
@@ -241,6 +244,7 @@ class SerialRelay(Node):
 def myexcepthook(type, value, tb):
     print("Uncaught exception:", type, value)
     serial_pub.ser.close()
+
 
 def main(args=None):
     rclpy.init(args=args)
