@@ -13,6 +13,10 @@ from interfaces_pkg.msg import ControllerState
 from interfaces_pkg.msg import ArmState
 
 
+
+serial_pub = None
+
+
 class SerialRelay(Node):
     def __init__(self):
         # Initalize node with name
@@ -234,9 +238,15 @@ class SerialRelay(Node):
         return glob.glob("/dev/tty[A-Za-z]*")
         
 
+def myexcepthook(type, value, tb):
+    print("Uncaught exception:", type, value)
+    serial_pub.ser.close()
+
 def main(args=None):
     rclpy.init(args=args)
+    sys.excepthook = myexcepthook
 
+    global serial_pub
     serial_pub = SerialRelay()
     serial_pub.run()
 
