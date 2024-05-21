@@ -238,7 +238,13 @@ void cmd_check(){
 
           for(int m = 0; m < 3; m++)
           {
-            motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat());//set duty cycle to and provided direction (or stop)
+            
+            if(m == 1)//axis 1 needs to run faster than the others becuase of the gear ratio
+            {
+              motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat()*2);//set duty cycle to and provided direction (or stop)
+            }else{
+              motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat());//set duty cycle to and provided direction (or stop)
+            }
             //sendDutyCycle(myCan, motorList[m].getID(), motorList[m].getDuty());//send duty cycle to motor
             delay(2);//delay to ensure all commands go through on CAN
           }
