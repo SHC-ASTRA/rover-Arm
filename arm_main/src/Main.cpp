@@ -30,6 +30,8 @@ AS5047P encoder2(37, AS5047P_CUSTOM_SPI_BUS_SPEED);
 AS5047P encoder3(36, AS5047P_CUSTOM_SPI_BUS_SPEED);
 AS5047P encoders[3] = {encoder1, encoder2, encoder3}; 
 
+float cpu_temp = tempmonGetTemp();
+bool led_state = false;
 
 //Setting arm!
 //AccelStepper Axis0(AccelStepper::FULL2WIRE,2,3,4,5); // Axis0 belt-driven NEMA stepper
@@ -172,6 +174,11 @@ void loop(){
     cmd_check(); //check for command if data is in the serial buffer
   }
 
+  // if(Serial3.available()){
+  //   String command = Serial3.readStringUntil('\n');
+  //   Serial.printf("GOT: %s",command);
+  // }
+
   safety_timeout();//stop all motors if no control commands are received for a certain amount of time (3 seconds)
   update_x0();//move Axis_0 based on its state
   //arm.IK_Execute();//execute the inverse kinematics for the arm (update arm speeds,angles,pos,etc..)
@@ -273,13 +280,14 @@ void cmd_check(){
         }
       }else if(args[1] == "endEffect")//arm,endEffect,...
       {
-        if(args.size() != 6)
-        {
-          Serial.println("Invalid number of args for endEffect command");
-        }else
-        {
+        //if((args[2] == "ctrl" && args.size() != 6) || (args[2] == "laser" && args.size() != 4))
+        //{
+        //  Serial.println("Invalid number of args for endEffect command");
+        //}else
+        //{
           if(args[2] == "ctrl")//arm,endEffect,ctrl,gripper_state,tilt_state,rotation_state
           {
+            Serial.printf("Sending: digit,%s,%d\n",args[2].c_str(),args[3].toInt());
             Serial3.printf("digit,ctrl,%d\n",args[3].toInt()); //send gripper control command to digit board
             //Serial.printf("digit,ctrl,%d\n",args[3].toInt());
             wrist_tilt_state = args[4].toInt();//set wrist tilt state
@@ -292,7 +300,7 @@ void cmd_check(){
             Serial3.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
             //Serial.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
           }
-        }
+        //}
       }else if (args[1] == "axis"){ // "arm,axis,axis_#,duty_cycle" // controls a single axis at a time (set direction)// FOR TESTING ONLY
 
         if(args[2] == "0"){//different control scheme for axis0
@@ -448,16 +456,28 @@ void loopHeartbeats(){//provide heartbeat for spark max controllers
 
 void feedback()
 {
-  if(millis() - lastFeedback > 2000)//Send out the arm's status every 2 seconds
+  if(millis() - lastFeedback > 1000)//Send out the arm's status every 2 seconds
   {
     Serial.printf("feedback,%f,%f,%f,%d,%d,%d,%d\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt,wrist_revolve_state,wrist_tilt_state,x0_state);
+    cpu_temp = tempmonGetTemp();
+    Serial.printf("Temp,%f\n", cpu_temp);
+
+    
     lastFeedback = millis();
-    /*
-    if (CrashReport) {
-    Serial.print(CrashReport);
-    }else{
-    Serial.println("No crash report available");
-    }*/
+    
+    if(cpu_temp >= 53.0)
+    {
+      if(led_state)
+      {
+        digitalWrite(LED_BUILTIN, LOW);
+        led_state = false;
+      }else{
+        digitalWrite(LED_BUILTIN, HIGH);
+        led_state = true;}
+      Serial.println("******************************");
+      Serial.printf("CPU TEMP IS TOO HIGH: %f\n", cpu_temp);
+      Serial.println("******************************");
+    }
   }
 }
 
@@ -527,7 +547,13 @@ void EF_manip(){
   //manipulate the end effector based on its states
   //wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
   //wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
-  if ((millis() - lastWrist) <= rotate_time_ms) {
+  if ((millis() - lastCtrlCmd) <= lastCtrlCmd) {
+    if(wrist_tilt_state == 0 && wrist_revolve_state == 0)
+    {
+      top_lss.wheelRPM(0);
+      bottom_lss.wheelRPM(0);
+      return;
+    }
     if(wrist_tilt_state != 0 && wrist_revolve_state != 0)//give preference to revolve
     {
       wrist_tilt_state = 0;//stop tilt if revolve is active
@@ -555,7 +581,9 @@ void EF_manip(){
     } 
   } else { 
     top_lss.wheelRPM(0); 
-    bottom_lss.wheelRPM(0); 
+    bottom_lss.wheelRPM(0);
+    //top_lss.reset();
+    //bottom_lss.reset();
   }
 
 }

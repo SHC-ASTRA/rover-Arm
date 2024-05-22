@@ -27,6 +27,7 @@ void setup() {
   
     pinMode(LED_PIN, OUTPUT);
     Serial.begin(115200);
+    Serial1.begin(115200);
     digitalWrite(LED_PIN, HIGH);
 
     delay(2000);
@@ -52,11 +53,13 @@ void parseInput(const String input, std::vector<String>& args, char delim);
 void loop() {
 
 
-  if((millis()-clockTimer)>500){
+  if((millis()-clockTimer)>1000){//temporarily set to 1 second
     clockTimer = millis();
     EFcontrolReal = 0;
     myservo.writeMicroseconds(1500);
-    Serial.println("Stopping servo");
+    // Serial1.print("PING\n");
+    // Serial.println("PING\n");
+    //Serial.println("Stopping servo");
   }
 
 
@@ -65,9 +68,11 @@ void loop() {
   //------------------//
   //
 
-  if (Serial.available()) {
-    String command = Serial.readStringUntil('\n');  
+  if (Serial1.available()) {
+    String command = Serial1.readStringUntil('\n');  
     command.trim();
+    Serial.print("[IN]:" + command + "\n");
+    
                       
     std::vector<String> args = {};
     parseInput(command, args, ',');
@@ -102,6 +107,7 @@ void loop() {
 
     }else if (args[0] == "ping") {
       Serial.println("pong");
+      Serial1.println("pong");
     } else if (args[0] == "time") {
       Serial.println(millis());
     }
