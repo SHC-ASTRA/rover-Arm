@@ -62,7 +62,7 @@ int wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
 
 //int axis0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
 int x0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
-int x0_update_time_ms = 250;//update time for axis 0
+int x0_update_time_ms = 175;//update time for axis 0
 Servo axis0; // Axis 0 servo object
 
 
@@ -71,7 +71,7 @@ unsigned long lastMotorUpdate;//last time the motors were updated
 unsigned long lastFeedback;//last time feedback was sent
 unsigned long lastx0;//last time axis 0 was updated
 unsigned long lastWrist;//last time the wrist was moved
-int rotate_time_ms = 250;
+int rotate_time_ms = 175;
 
 // Function prototypes 
 void loopHeartbeats(); //heartbeat for sparkmax controllers
@@ -225,10 +225,10 @@ void cmd_check(){
 
         if(args[2] == "ik"){//arm,setMode,ik
           ik_mode = true;
-          Serial.println("Set control mode to: IK");
+          //Serial.println("Set control mode to: IK");
         }else if(args[2] == "manual"){//arm,setMode,manual
           ik_mode = false;
-          Serial.println("Set control mode to: manual");
+          //Serial.println("Set control mode to: manual");
         }else{
           Serial.println("Invalid control mode!");
         }
@@ -240,21 +240,12 @@ void cmd_check(){
         }else if(args.size() == 7)//if not in IK mode and got enough arguments for all joints
         {
           x0_state = args[2].toInt();//set axis0 state
-          
-          Serial.println("trying to set motor duty cycles");
 
-          for(int m = 0; m < 3; m++)
-          {
-            
-            if(m == 1)//axis 1 needs to run faster than the others becuase of the gear ratio
-            {
-              motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat()*2);//set duty cycle to and provided direction (or stop)
-            }else{
-              motorList[m].setDuty(args[2].toFloat()*args[m+4].toFloat());//set duty cycle to and provided direction (or stop)
-            }
-            //sendDutyCycle(myCan, motorList[m].getID(), motorList[m].getDuty());//send duty cycle to motor
-            delay(2);//delay to ensure all commands go through on CAN
-          }
+          motorList[0].setDuty(args[2].toFloat()*args[4].toFloat()*2);//axis1, 2x speed multiplier
+          delay(1);
+          motorList[1].setDuty(args[2].toFloat()*args[5].toFloat()*1.5);//axis2, 1.5x speed multiplier
+          delay(1);
+          motorList[2].setDuty(args[2].toFloat()*args[6].toFloat()*1);//axis3, 1x speed multiplier
 
           lastCtrlCmd = millis();//update last control command time
         }else{
@@ -267,7 +258,7 @@ void cmd_check(){
         }else if(args.size() == 5)//if in IK mode and correct number of arguments
         {
           x0_state = args[2].toInt();//set axis0 state
-          Serial.println("trying to plan IK...");
+          //Serial.println("trying to plan IK...");
           int ik_output = arm.IK_Plan(args[3].toFloat(), args[4].toFloat());//plan the IK movement
           if(ik_output == 1)
           {
@@ -547,7 +538,7 @@ void EF_manip(){
   //manipulate the end effector based on its states
   //wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
   //wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
-  if ((millis() - lastCtrlCmd) <= lastCtrlCmd) {
+  if ((millis() - lastCtrlCmd) <= rotate_time_ms) {
     if(wrist_tilt_state == 0 && wrist_revolve_state == 0)
     {
       top_lss.wheelRPM(0);
@@ -561,22 +552,22 @@ void EF_manip(){
     if(wrist_tilt_state != 0)
     {
       //manipulate wrist tilt
-      if(wrist_tilt_state >= 1)//right
-      {
-        move_wrist(0, 0);
-      }else if(wrist_tilt_state <= -1)//left
+      if(wrist_tilt_state >= 1)//left
       {
         move_wrist(0, 1);
+      }else if(wrist_tilt_state <= -1)//right
+      {
+        move_wrist(0, 0);
       }
     }else if(wrist_revolve_state != 0)
     {
       //manipulate wrist revolve
-      if(wrist_revolve_state >= 1)//cw
-      {
-        move_wrist(1, 0);
-      }else if(wrist_revolve_state <= -1)//ccw
+      if(wrist_revolve_state >= 1)//ccw
       {
         move_wrist(1, 1);
+      }else if(wrist_revolve_state <= -1)//cw
+      {
+        move_wrist(1, 0);
       }
     } 
   } else { 
