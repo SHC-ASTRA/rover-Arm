@@ -31,7 +31,7 @@ class SerialRelay(Node):
         ports = SerialRelay.list_serial_ports()
         for port in ports:
             try:
-                ser = serial.Serial(port, timeout=1)
+                ser = serial.Serial(port, timeout=1.0)
                 ser.write(b"arm,ping\n")
                 response = ser.read_until("\n")
                 if b"pong" in response:
@@ -132,8 +132,8 @@ class SerialRelay(Node):
             print(f"[Wrote] {command}", end="")
         
         if(msg.lb):
-            self.ser.write(bytes("arm,setMode,manual\n", "utf8"))
-            command = "arm,man,0.15,"
+            #self.ser.write(bytes("arm,setMode,manual\n", "utf8"))
+            command = "arm,man,0.25,"
             if(msg.d_left):
                 command += "-1,"
             elif(msg.d_right):
@@ -164,20 +164,34 @@ class SerialRelay(Node):
             print(f"[Wrote] {command}", end="")
             return
         else:
-            self.ser.write(bytes("arm,setMode,ik\n", "utf8"))
-            command = "arm,ik,"
+            #self.ser.write(bytes("arm,setMode,manual\n", "utf8"))
+            command = "arm,man,0.15,"
             if(msg.d_left):
                 command += "-1,"
             elif(msg.d_right):
                 command += "1,"
             else:
-                command += "0," 
+                command += "0,"
+            if(msg.ls_x < -0.5):
+                command += "-1,"
+            elif(msg.ls_x > 0.5):
+                command += "1,"
+            else:
+                command += "0,"
+            if(msg.ls_y < -0.5):
+                command += "1,"
+            elif(msg.ls_y > 0.5):
+                command += "-1,"
+            else:
+                command += "0,"
+            if(msg.rs_y < -0.5):
+                command += "1"
+            elif(msg.rs_y > 0.5):
+                command += "-1"
+            else:
+                command += "0"
 
-            coord_x = -1*msg.ls_y
-            coord_y = -1*msg.rs_y
-            coord_x = round(coord_x * 20.4 * 2, 1)
-            coord_y = round(coord_y * 20.4 * 2, 1)
-            command += f"{coord_x},{coord_y}\n"
+            command += "\n"
             self.ser.write(bytes(command, "utf8"))
             print(f"[Wrote] {command}", end="")
             return

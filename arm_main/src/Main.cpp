@@ -241,11 +241,11 @@ void cmd_check(){
         {
           x0_state = args[2].toInt();//set axis0 state
 
-          motorList[0].setDuty(args[2].toFloat()*args[4].toFloat()*2);//axis1, 2x speed multiplier
+          motorList[0].setDuty(args[2].toFloat()*args[4].toFloat()*2.1);//axis1, 2.1x speed multiplier
           delay(1);
-          motorList[1].setDuty(args[2].toFloat()*args[5].toFloat()*1.5);//axis2, 1.5x speed multiplier
+          motorList[1].setDuty(args[2].toFloat()*args[5].toFloat()*1.4);//axis2, 1.4x speed multiplier
           delay(1);
-          motorList[2].setDuty(args[2].toFloat()*args[6].toFloat()*1);//axis3, 1x speed multiplier
+          motorList[2].setDuty(args[2].toFloat()*args[6].toFloat()*0.9);//axis3, 0.9x speed multiplier
 
           lastCtrlCmd = millis();//update last control command time
         }else{
@@ -538,14 +538,13 @@ void EF_manip(){
   //manipulate the end effector based on its states
   //wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
   //wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
-  if ((millis() - lastCtrlCmd) <= rotate_time_ms) {
+  if ((millis() - lastWrist) <= rotate_time_ms) {
     if(wrist_tilt_state == 0 && wrist_revolve_state == 0)
     {
       top_lss.wheelRPM(0);
       bottom_lss.wheelRPM(0);
       return;
-    }
-    if(wrist_tilt_state != 0 && wrist_revolve_state != 0)//give preference to revolve
+    }else if(wrist_tilt_state != 0 && wrist_revolve_state != 0)//give preference to revolve
     {
       wrist_tilt_state = 0;//stop tilt if revolve is active
     }
