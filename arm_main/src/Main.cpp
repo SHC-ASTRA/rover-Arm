@@ -239,7 +239,7 @@ void cmd_check(){
           Serial.println("Manual control disabled while in IK mode");
         }else if(args.size() == 7)//if not in IK mode and got enough arguments for all joints
         {
-          x0_state = args[2].toInt();//set axis0 state
+          x0_state = args[3].toInt();//set axis0 state
 
           motorList[0].setDuty(args[2].toFloat()*args[4].toFloat()*2.1);//axis1, 2.1x speed multiplier
           delay(1);
@@ -278,7 +278,7 @@ void cmd_check(){
         //{
           if(args[2] == "ctrl")//arm,endEffect,ctrl,gripper_state,tilt_state,rotation_state
           {
-            Serial.printf("Sending: digit,%s,%d\n",args[2].c_str(),args[3].toInt());
+            //Serial.printf("Sending: digit,%s,%d\n",args[2].c_str(),args[3].toInt());
             Serial3.printf("digit,ctrl,%d\n",args[3].toInt()); //send gripper control command to digit board
             //Serial.printf("digit,ctrl,%d\n",args[3].toInt());
             wrist_tilt_state = args[4].toInt();//set wrist tilt state
@@ -412,12 +412,15 @@ void update_x0()
     if(x0_state == 0)
     {
       axis0.writeMicroseconds(1500);//stop
+      //Serial.println("STOPPING AXIS 0");
     }else if(x0_state == 1)
     {
       axis0.writeMicroseconds(1100);//cw
+      //Serial.println("MOVING AXIS 0 CW");
     }else if(x0_state == -1)
     {
       axis0.writeMicroseconds(1800);//ccw
+      //Serial.println("MOVING AXIS 0 CCW");
     }
   }else{
     axis0.writeMicroseconds(1500);//stop
@@ -449,22 +452,14 @@ void feedback()
 {
   if(millis() - lastFeedback > 1000)//Send out the arm's status every 2 seconds
   {
-    Serial.printf("feedback,%f,%f,%f,%d,%d,%d,%d\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt,wrist_revolve_state,wrist_tilt_state,x0_state);
+    //Serial.printf("feedback,%f,%f,%f,%d,%d,%d,%d\n",arm.angles[0],arm.angles[1],arm.angles[2],arm.wrist.cur_tilt,wrist_revolve_state,wrist_tilt_state,x0_state);
     cpu_temp = tempmonGetTemp();
-    Serial.printf("Temp,%f\n", cpu_temp);
-
+    Serial.printf("feedback,arm,temp,%f\n", cpu_temp);
     
     lastFeedback = millis();
     
-    if(cpu_temp >= 53.0)
+    if(cpu_temp >= 60.0)
     {
-      if(led_state)
-      {
-        digitalWrite(LED_BUILTIN, LOW);
-        led_state = false;
-      }else{
-        digitalWrite(LED_BUILTIN, HIGH);
-        led_state = true;}
       Serial.println("******************************");
       Serial.printf("CPU TEMP IS TOO HIGH: %f\n", cpu_temp);
       Serial.println("******************************");
