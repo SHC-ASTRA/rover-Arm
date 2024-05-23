@@ -71,7 +71,7 @@ void loop() {
   if (Serial1.available()) {
     String command = Serial1.readStringUntil('\n');  
     command.trim();
-    Serial.print("[IN]:" + command + "\n");
+    //Serial.print("[IN]:" + command + "\n");
     
                       
     std::vector<String> args = {};

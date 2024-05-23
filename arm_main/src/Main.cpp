@@ -486,53 +486,6 @@ void safety_timeout(){
   }
 }
 
-/*
-void EF_manip(){
-  //manipulate the end effector based on its states
-  //wrist_tilt_state = 0; // Wrist tilt state (0: stop, 1: right, -1: left)
-  //wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
-
-  if(wrist_tilt_state != 0 && wrist_revolve_state != 0)//give preference to revolve
-  {
-    wrist_tilt_state = 0;//stop tilt if revolve is active
-    Serial.println("Both wrist tilt and revolve are active, stopping tilt");
-  }
-  if(wrist_tilt_state != 0)
-  {
-    //manipulate wrist tilt
-    if(wrist_tilt_state >= 1)//right
-    {
-      //arm.wrist.move_wrist(0, 0, top_lss, bottom_lss);
-      move_wrist(0, 0);
-      Serial.println("Moving wrist right");
-    }else if(wrist_tilt_state <= -1)//left
-    {
-      //arm.wrist.move_wrist(0, 1, top_lss, bottom_lss);
-      move_wrist(0, 1);
-      Serial.println("Moving wrist left");
-    }
-  }else if(wrist_revolve_state != 0)
-  {
-    //manipulate wrist revolve
-    if(wrist_revolve_state >= 1)//cw
-    {
-      //arm.wrist.move_wrist(1, 0, top_lss, bottom_lss);
-      move_wrist(1, 0);
-    }else if(wrist_revolve_state <= -1)//ccw
-    {
-      move_wrist(1, 1);
-      //arm.wrist.move_wrist(1, 1, top_lss, bottom_lss);
-    }
-  }else if(wrist_revolve_state == 0 && wrist_tilt_state == 0)
-  {
-    //stop all wrist movement
-    top_lss.move(0);;
-    bottom_lss.move(0);
-  }
-
-
-}
-*/
 
 void EF_manip(){
   //manipulate the end effector based on its states

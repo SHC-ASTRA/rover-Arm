@@ -29,20 +29,24 @@ class SerialRelay(Node):
         # Loop through all serial devices on the computer to check for the MCU
         self.port = None
         ports = SerialRelay.list_serial_ports()
-        for port in ports:
-            try:
-                ser = serial.Serial(port, timeout=1.0)
-                ser.write(b"arm,ping\n")
-                response = ser.read_until("\n")
-                if b"pong" in response:
-                    self.port = port
-                    print(f"Found MCU at {self.port}!")
-                    break
-            except:
-                pass
+        for i in range(2):#Make two attempts for each port because the teensy normally won't respond on first attempt
+            for port in ports:
+                try:
+                    ser = serial.Serial(port, timeout=1.0)
+                    ser.write(b"arm,ping\n")
+                    response = ser.read_until("\n")
+                    if b"pong" in response:
+                        self.port = port
+                        print(f"Found MCU at {self.port}!")
+                        break
+                except:
+                    pass
+            if self.port is not None:
+                break
         
         if self.port is None:
             print("Unable to find MCU... please make sure it is connected.")
+            time.sleep(1)
             sys.exit(1)
         
         self.ser = serial.Serial(self.port, 115200)
@@ -73,6 +77,21 @@ class SerialRelay(Node):
                 msg.data = output
                 self.output_publisher.publish(msg)
         except serial.SerialException:
+            print("SerialException caught... closing serial port.")
+            if self.ser.is_open:
+                self.ser.close()
+            pass
+        except TypeError as e:
+            print(f"TypeError: {e}")
+            print("Closing serial port.")
+            if self.ser.is_open:
+                self.ser.close()
+            pass
+        except Exception as e:
+            print(f"Exception: {e}")
+            print("Closing serial port.")
+            if self.ser.is_open:
+                self.ser.close()
             pass
 
     def send_controls(self, msg):
@@ -134,71 +153,44 @@ class SerialRelay(Node):
         if(msg.lb):
             #self.ser.write(bytes("arm,setMode,manual\n", "utf8"))
             command = "arm,man,0.25,"
-            if(msg.d_left):
-                command += "-1,"
-            elif(msg.d_right):
-                command += "1,"
-            else:
-                command += "0,"
-            if(msg.ls_x < -0.5):
-                command += "-1,"
-            elif(msg.ls_x > 0.5):
-                command += "1,"
-            else:
-                command += "0,"
-            if(msg.ls_y < -0.5):
-                command += "1,"
-            elif(msg.ls_y > 0.5):
-                command += "-1,"
-            else:
-                command += "0,"
-            if(msg.rs_y < -0.5):
-                command += "1"
-            elif(msg.rs_y > 0.5):
-                command += "-1"
-            else:
-                command += "0"
-
-            command += "\n"
-            self.ser.write(bytes(command, "utf8"))
-            print(f"[Wrote] {command}", end="")
-            return
         else:
             #self.ser.write(bytes("arm,setMode,manual\n", "utf8"))
             command = "arm,man,0.15,"
-            if(msg.d_left):
-                command += "-1,"
-            elif(msg.d_right):
-                command += "1,"
-            else:
-                command += "0,"
-            if(msg.ls_x < -0.5):
-                command += "-1,"
-            elif(msg.ls_x > 0.5):
-                command += "1,"
-            else:
-                command += "0,"
-            if(msg.ls_y < -0.5):
-                command += "1,"
-            elif(msg.ls_y > 0.5):
-                command += "-1,"
-            else:
-                command += "0,"
-            if(msg.rs_y < -0.5):
-                command += "1"
-            elif(msg.rs_y > 0.5):
-                command += "-1"
-            else:
-                command += "0"
 
-            command += "\n"
-            self.ser.write(bytes(command, "utf8"))
-            print(f"[Wrote] {command}", end="")
-            return
+        if(msg.d_left):
+            command += "-1,"
+        elif(msg.d_right):
+            command += "1,"
+        else:
+            command += "0,"
+        if(msg.ls_x < -0.4):
+            command += "1,"
+        elif(msg.ls_x > 0.4):
+            command += "-1,"
+        else:
+            command += "0,"
+        if(msg.ls_y < -0.4):
+            command += "1,"
+        elif(msg.ls_y > 0.4):
+            command += "-1,"
+        else:
+            command += "0,"
+        if(msg.rs_y < -0.4):
+            command += "1"
+        elif(msg.rs_y > 0.4):
+            command += "-1"
+        else:
+            command += "0"
+
+        command += "\n"
+        self.ser.write(bytes(command, "utf8"))
+        print(f"[Wrote] {command}", end="")
+        return
 
     @staticmethod
     def list_serial_ports():
-        return glob.glob("/dev/tty[A-Za-z]*")
+        return glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
+        #return glob.glob("/dev/tty[A-Za-z]*")
 
     def cleanup(self):
         print("Cleaning up...")
