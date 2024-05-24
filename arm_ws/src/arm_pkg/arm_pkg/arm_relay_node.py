@@ -22,9 +22,12 @@ class SerialRelay(Node):
         # Create publishers
         self.output_publisher = self.create_publisher(String, '/astra/arm/feedback', 10)
         self.state_publisher = self.create_publisher(ArmState, '/astra/arm/state', 10)
+        self.faerie_publisher = self.create_publisher(String, '/astra/arm/bio/feedback', 10)
+
 
         # Create subscriber
         self.subscriber = self.create_subscription(ControllerState, '/astra/arm/control', self.send_controls, 10)
+        self.faerie_subscriber = self.create_subscription(String, "/astra/arm/bio/control", self.send_faerie_controls, 10)
 
         # Loop through all serial devices on the computer to check for the MCU
         self.port = None
@@ -68,14 +71,24 @@ class SerialRelay(Node):
         finally:
             self.cleanup()
 
+
+
     def read_mcu(self):
         try:
             output = str(self.ser.readline(), "utf8")
             if output:
-                print(f"[MCU] {output}", end="")
-                msg = String()
-                msg.data = output
-                self.output_publisher.publish(msg)
+                packet = output.strip().split(',')
+                if len(packet) == 3 and packet[0] == "faeriesht":#faieriesht,temp,humidity
+                    print(f"[FAERIE] {output}", end="")
+                    msg = String()
+                    msg.data = output
+                    self.faerie_publisher.publish(msg)
+                    return
+                else:
+                    print(f"[MCU] {output}", end="")
+                    msg = String()
+                    msg.data = output
+                    self.output_publisher.publish(msg)
         except serial.SerialException:
             print("SerialException caught... closing serial port.")
             if self.ser.is_open:
@@ -93,6 +106,9 @@ class SerialRelay(Node):
             if self.ser.is_open:
                 self.ser.close()
             pass
+
+    def send_faerie_controls(self, msg):
+        self.ser.write(bytes(msg.data, "utf8"))
 
     def send_controls(self, msg):
         command = ""
