@@ -174,10 +174,12 @@ void loop(){
     cmd_check(); //check for command if data is in the serial buffer
   }
 
-  // if(Serial3.available()){
-  //   String command = Serial3.readStringUntil('\n');
-  //   Serial.printf("GOT: %s",command);
-  // }
+  if(Serial3.available()){
+    String command = Serial3.readStringUntil('\n');
+    if(command.length() > 11)
+      if(command.substring(0,10) == "faeriesht,")
+        Serial.print(command);
+  }
 
   safety_timeout();//stop all motors if no control commands are received for a certain amount of time (3 seconds)
   update_x0();//move Axis_0 based on its state
@@ -348,6 +350,8 @@ void cmd_check(){
       
     }else if (args[0] == "endEffect"){// looking for a command -> "endEffect,..."
       //pass
+    } else if (args[0] == "faerie") {
+      Serial3.println(command);
     }else if (args[0] == "data") {  
       /*
         digitalWrite(LED_PIN, HIGH); 
