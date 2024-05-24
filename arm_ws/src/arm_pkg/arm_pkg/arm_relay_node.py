@@ -10,6 +10,7 @@ import signal
 from std_msgs.msg import String
 from interfaces_pkg.msg import ControllerState
 from interfaces_pkg.msg import ArmState
+from interfaces_pkg.msg import FaerieTelemetry
 
 serial_pub = None
 thread = None
@@ -22,7 +23,7 @@ class SerialRelay(Node):
         # Create publishers
         self.output_publisher = self.create_publisher(String, '/astra/arm/feedback', 10)
         self.state_publisher = self.create_publisher(ArmState, '/astra/arm/state', 10)
-        self.faerie_publisher = self.create_publisher(String, '/astra/arm/bio/feedback', 10)
+        self.faerie_publisher = self.create_publisher(FaerieTelemetry, '/astra/arm/bio/feedback', 10)
 
 
         # Create subscriber
@@ -80,8 +81,9 @@ class SerialRelay(Node):
                 packet = output.strip().split(',')
                 if len(packet) == 3 and packet[0] == "faeriesht":#faieriesht,temp,humidity
                     print(f"[FAERIE] {output}", end="")
-                    msg = String()
-                    msg.data = output
+                    msg = FaerieTelemetry()
+                    msg.temperature = float(packet[1])
+                    msg.humidity = float(packet[2])
                     self.faerie_publisher.publish(msg)
                     return
                 else:
