@@ -245,7 +245,7 @@ void cmd_check(){
 
           motorList[0].setDuty(args[2].toFloat()*args[4].toFloat()*2.1);//axis1, 2.1x speed multiplier
           delay(1);
-          motorList[1].setDuty(args[2].toFloat()*args[5].toFloat()*4.4);//axis2, 4.4x speed multiplier (higher multiplier because in brake mode)
+          motorList[1].setDuty(args[2].toFloat()*args[5].toFloat()*2.4);//axis2, 4.4x speed multiplier (higher multiplier because in brake mode) (originally 1.4, up to 4.4 for brake, pulled back down to 2.22)
           delay(1);
           motorList[2].setDuty(args[2].toFloat()*args[6].toFloat()*0.9);//axis3, 0.9x speed multiplier
 
