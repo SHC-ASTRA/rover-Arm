@@ -245,7 +245,7 @@ void cmd_check(){
 
           motorList[0].setDuty(args[2].toFloat()*args[4].toFloat()*2.1);//axis1, 2.1x speed multiplier
           delay(1);
-          motorList[1].setDuty(args[2].toFloat()*args[5].toFloat()*1.4);//axis2, 1.4x speed multiplier
+          motorList[1].setDuty(args[2].toFloat()*args[5].toFloat()*4.4);//axis2, 4.4x speed multiplier (higher multiplier because in brake mode)
           delay(1);
           motorList[2].setDuty(args[2].toFloat()*args[6].toFloat()*0.9);//axis3, 0.9x speed multiplier
 
@@ -419,11 +419,11 @@ void update_x0()
       //Serial.println("STOPPING AXIS 0");
     }else if(x0_state == 1)
     {
-      axis0.writeMicroseconds(1400);//cw
+      axis0.writeMicroseconds(1000);//cw
       //Serial.println("MOVING AXIS 0 CW");
     }else if(x0_state == -1)
     {
-      axis0.writeMicroseconds(1600);//ccw
+      axis0.writeMicroseconds(2000);//ccw
       //Serial.println("MOVING AXIS 0 CCW");
     }
   }else{
