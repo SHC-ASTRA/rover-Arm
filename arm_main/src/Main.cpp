@@ -62,7 +62,7 @@ int wrist_revolve_state = 0; // Wrist revolve state (0: stop, 1: cw, -1: ccw)
 
 //int axis0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
 int x0_state = 0; // Axis 0 state (0: stop, 1: cw, -1: ccw)
-int x0_update_time_ms = 175;//update time for axis 0
+int x0_update_time_ms = 125;//update time for axis 0
 Servo axis0; // Axis 0 servo object
 
 
@@ -419,11 +419,11 @@ void update_x0()
       //Serial.println("STOPPING AXIS 0");
     }else if(x0_state == 1)
     {
-      axis0.writeMicroseconds(1100);//cw
+      axis0.writeMicroseconds(1400);//cw
       //Serial.println("MOVING AXIS 0 CW");
     }else if(x0_state == -1)
     {
-      axis0.writeMicroseconds(1800);//ccw
+      axis0.writeMicroseconds(1600);//ccw
       //Serial.println("MOVING AXIS 0 CCW");
     }
   }else{
