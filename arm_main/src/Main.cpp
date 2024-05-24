@@ -217,7 +217,7 @@ void cmd_check(){
                       
   std::vector<String> args = {};
   parseInput(command, args, ',');
-  Serial.println("Got command: " + command);
+  //Serial.println("Got command: " + command);
 
   
   //Serial.printf("args: %s, %s, %s, %s\n", args[0].c_str(), args[1].c_str(), args[2].c_str(), args[3].c_str());
