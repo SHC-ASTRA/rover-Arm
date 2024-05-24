@@ -217,6 +217,7 @@ void cmd_check(){
                       
   std::vector<String> args = {};
   parseInput(command, args, ',');
+  Serial.println("Got command: " + command);
 
   
   //Serial.printf("args: %s, %s, %s, %s\n", args[0].c_str(), args[1].c_str(), args[2].c_str(), args[3].c_str());
@@ -350,8 +351,9 @@ void cmd_check(){
       
     }else if (args[0] == "endEffect"){// looking for a command -> "endEffect,..."
       //pass
-    } else if (args[0] == "faerie") {
+    }else if (args[0] == "faerie") {
       Serial3.println(command);
+      Serial.printf("Sending to faerie: %s\n", command.c_str());
     }else if (args[0] == "data") {  
       /*
         digitalWrite(LED_PIN, HIGH); 

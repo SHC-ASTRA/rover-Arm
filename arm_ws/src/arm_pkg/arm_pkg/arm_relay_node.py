@@ -111,6 +111,7 @@ class SerialRelay(Node):
 
     def send_faerie_controls(self, msg):
         self.ser.write(bytes(msg.data, "utf8"))
+        print(f"[Wrote To Faerie] {msg.data}", end="")
 
     def send_controls(self, msg):
         command = ""
