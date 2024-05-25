@@ -178,7 +178,7 @@ void loop(){
     String command = Serial3.readStringUntil('\n');
     if(command.length() > 11)
       if(command.substring(0,10) == "faeriesht,")
-        Serial.print(command);
+        Serial.println(command);
   }
 
   safety_timeout();//stop all motors if no control commands are received for a certain amount of time (3 seconds)
