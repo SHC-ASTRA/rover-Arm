@@ -176,6 +176,7 @@ void loop(){
 
   if(Serial3.available()){
     String command = Serial3.readStringUntil('\n');
+    command.trim();
     if(command.length() > 11)
       if(command.substring(0,10) == "faeriesht,")
         Serial.println(command);
