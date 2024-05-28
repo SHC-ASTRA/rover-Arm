@@ -122,6 +122,15 @@ class SerialRelay(Node):
             print(f"[Wrote] {command}", end="")
             return 
         
+        if(msg.a):
+            command = "arm,endEffect,act,0"#retract actuator out
+            self.ser.write(bytes(command, "utf8"))
+            print(f"[Wrote] {command}", end="")
+        elif(msg.x):
+            command = "arm,endEffect,act,1"#extend actuator in
+            self.ser.write(bytes(command, "utf8"))
+            print(f"[Wrote] {command}", end="")
+
         if(msg.plus):
             command = "arm,endEffect,laser,1\n"
             self.ser.write(bytes(command, "utf8"))

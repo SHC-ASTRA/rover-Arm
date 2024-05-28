@@ -294,6 +294,9 @@ void cmd_check(){
           }else if(args[2] == "laser"){
             Serial3.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
             //Serial.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
+          }else if(args[2] == "act"){
+            Serial3.printf("digit,act,%d\n",args[3].toInt());//send laser control command to digit board
+            //Serial.printf("digit,laser,%d\n",args[3].toInt());//send laser control command to digit board
           }
         //}
       }else if (args[1] == "axis"){ // "arm,axis,axis_#,duty_cycle" // controls a single axis at a time (set direction)// FOR TESTING ONLY
