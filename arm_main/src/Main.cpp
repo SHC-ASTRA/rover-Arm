@@ -342,7 +342,7 @@ void cmd_check(){
         {
           //To Be Implemented
         }
-      }else if (args[1] == "aux")
+      }else if (args[1] == "aux")//arm,aux,lynx_reset
       {
         if(args[2] == "lynx_reset")
         {

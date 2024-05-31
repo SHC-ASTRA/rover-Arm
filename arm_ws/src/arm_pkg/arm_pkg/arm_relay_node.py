@@ -27,7 +27,8 @@ class SerialRelay(Node):
 
 
         # Create subscriber
-        self.subscriber = self.create_subscription(ControllerState, '/astra/arm/control', self.send_controls, 10)
+        self.control_subscriber = self.create_subscription(ControllerState, '/astra/arm/control', self.send_controls, 10)
+        self.command_subscriber = self.create_subscription(String, '/astra/arm/command', self.send_command, 10)
         self.faerie_subscriber = self.create_subscription(String, "/astra/arm/bio/control", self.send_faerie_controls, 10)
 
         # Loop through all serial devices on the computer to check for the MCU
@@ -112,6 +113,10 @@ class SerialRelay(Node):
     def send_faerie_controls(self, msg):
         self.ser.write(bytes(msg.data, "utf8"))
         print(f"[Wrote To Faerie] {msg.data}", end="")
+
+    def send_command(self, msg):
+        self.ser.write(bytes(msg.data, "utf8"))
+        print(f"[Wrote] {msg.data}", end="")
 
     def send_controls(self, msg):
         command = ""
