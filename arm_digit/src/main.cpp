@@ -1,11 +1,17 @@
 // Includes
 #include <Arduino.h>
-#include <iostream>
-#include <string>
 #include <cmath>
 #include <cstdlib>
 #include <vector>
+
+#include "DIGIT.h"
+
+// Included with rover-Embedded-Lib
+/*
 #include <Servo.h>
+#include <iostream>
+#include <string>
+*/
 
 using namespace std;
 
