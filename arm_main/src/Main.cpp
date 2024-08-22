@@ -1,31 +1,23 @@
 // Standard Includes
 #include <Arduino.h>
-
+#include <iostream>
+#include <string>
+#include <Servo.h>
+#include "TeensyThreads.h"
 
 // Our own resources
-#include "ARM.h"
-
-
-//Included with rover-Embedded-Lib
-/*
 #include "AstraMotors.h"
 #include "AstraArm.h"
 #include "AstraCAN.h"
 #include "AstraSensors.h"
-#include "TeensyThreads.h"
-#include <iostream>
-#include <string>
-*/
+#include "project/ARM.h"
+#include "AstraMisc.h"
+
 
 //test
 #include <CrashReport.h>
 
 using namespace std;
-
-#define LSS_BAUD    (LSS_DefaultBaud)
-#define LSS_SERIAL    (Serial7)
-
-#define LED_PIN 13 //Builtin LED pin for Teensy 4.1 (pin 25 for pi Pico)
 
 
 //Setting up for CAN line
@@ -96,13 +88,13 @@ void move_wrist(bool revolve, bool invert);//move the wrist based on its states
 void setup() {
 
     //built_in teensy LED
-    pinMode(LED_PIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);//usb serial line
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_BUILTIN, HIGH);
 
     //blink to signify boot
     delay(2000);
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
 
     Serial3.begin(115200);//Digit board serial line
 
@@ -224,7 +216,7 @@ void cmd_check(){
   command.trim();
                       
   std::vector<String> args = {};
-  parseInput(command, args);
+  parseInput(command, args, ',');
   //Serial.println("Got command: " + command);
 
   
@@ -367,14 +359,14 @@ void cmd_check(){
       Serial.printf("Sending to faerie: %s\n", command.c_str());
     }else if (args[0] == "data") {  
       /*
-        digitalWrite(LED_PIN, HIGH); 
+        digitalWrite(LED_BUILTIN, HIGH); 
         // Serial.print("Angle: ");                        // print some text to the serial consol.
         // Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
         // delay(500);                                     // wait for 500 milli seconds.
         data_bool = true; 
         
         // wait
-        digitalWrite(LED_PIN, LOW);                     // deactivate the led.
+        digitalWrite(LED_BUILTIN, LOW);                     // deactivate the led.
         delay(500);
         */
     }
