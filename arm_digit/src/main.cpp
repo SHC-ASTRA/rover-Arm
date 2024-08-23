@@ -3,22 +3,18 @@
 #include <cmath>
 #include <cstdlib>
 #include <vector>
-
-#include "DIGIT.h"
-
-// Included with rover-Embedded-Lib
-/*
 #include <Servo.h>
 #include <iostream>
 #include <string>
-*/
+
+#include "AstraMisc.h"
+#include "project/DIGIT.h"
 
 using namespace std;
 
 Servo myservo;
 
-#define LED_PIN 13 //Builtin LED pin for Teensy 4.1 (pin 25 for pi Pico)
-#define LASER_PIN 8 //GPIO 8
+#define PIN_LASER 8  // GPIO 8  // moved to rover-Embedded-Lib in 0.6.0
 
 
 unsigned long clockTimer = millis();
@@ -31,17 +27,17 @@ void setup() {
   // Initialize Pins //
   //-----------------//
   
-    pinMode(LED_PIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
-    Serial1.begin(115200);
-    digitalWrite(LED_PIN, HIGH);
+    COMMS_UART.begin(115200);
+    digitalWrite(LED_BUILTIN, HIGH);
 
     delay(2000);
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
 
     //pinMode(20, INPUT_PULLUP); //Needed for IMU to work on PCB <-this line is from core rover, but leaving it here
-    pinMode(LASER_PIN, OUTPUT); //GPIO 8
-    digitalWrite(LASER_PIN, LOW);
+    pinMode(PIN_LASER, OUTPUT); //GPIO 8
+    digitalWrite(PIN_LASER, LOW);
 
     myservo.attach(19); //GPIO 19, Physically pin 25
   
@@ -63,7 +59,7 @@ void loop() {
     clockTimer = millis();
     EFcontrolReal = 0;
     myservo.writeMicroseconds(1500);
-    // Serial1.print("PING\n");
+    // COMMS_UART.print("PING\n");
     // Serial.println("PING\n");
     //Serial.println("Stopping servo");
   }
@@ -74,8 +70,8 @@ void loop() {
   //------------------//
   //
 
-  if (Serial1.available()) {
-    String command = Serial1.readStringUntil('\n');  
+  if (COMMS_UART.available()) {
+    String command = COMMS_UART.readStringUntil('\n');  
     command.trim();
     //Serial.print("[IN]:" + command + "\n");
     
@@ -104,16 +100,16 @@ void loop() {
       }else if (args[1] == "laser") {        // 
         if(args[2] == "0")
         {
-          digitalWrite(LASER_PIN, LOW);
+          digitalWrite(PIN_LASER, LOW);
         }else if(args[2] == "1")
         {
-          digitalWrite(LASER_PIN, HIGH);
+          digitalWrite(PIN_LASER, HIGH);
         }
       }
 
     }else if (args[0] == "ping") {
       Serial.println("pong");
-      Serial1.println("pong");
+      COMMS_UART.println("pong");
     } else if (args[0] == "time") {
       Serial.println(millis());
     }
