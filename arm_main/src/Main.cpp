@@ -2,27 +2,27 @@
 #include <Arduino.h>
 #include <iostream>
 #include <string>
+#include <Servo.h>
+#include "TeensyThreads.h"
 
 // Our own resources
 #include "AstraMotors.h"
 #include "AstraArm.h"
 #include "AstraCAN.h"
 #include "AstraSensors.h"
-#include "TeensyThreads.h"
+#include "project/ARM.h"
+#include "AstraMisc.h"
+
 
 //test
 #include <CrashReport.h>
 
 using namespace std;
 
-#define LSS_BAUD    (LSS_DefaultBaud)
-#define LSS_SERIAL    (Serial7)
 
-#define LED_PIN 13 //Builtin LED pin for Teensy 4.1 (pin 25 for pi Pico)
+//Setting up for CAN line
+AstraFCAN CAN; //AstraCan.h in rover-Embedded-Lib defines this as CAN3 for arm
 
-
-//Setting up for myCan line
-FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> myCan;
 
 //Setting up for magnetic encoders 
 AS5047P encoder1(10, AS5047P_CUSTOM_SPI_BUS_SPEED); 
@@ -76,7 +76,6 @@ int rotate_time_ms = 175;
 // Function prototypes 
 void loopHeartbeats(); //heartbeat for sparkmax controllers
 void cmd_check(); //check for command if data is in the serial buffer
-void parseInput(const String input, std::vector<String>& args, char delim); // parse command to args[]
 void update_x0();//Move axis 0 based on its state
 void safety_timeout();//stop all motors if no control commands are received for a certain amount of time
 void EF_manip();//manipulate the end effector based on its states
@@ -89,13 +88,13 @@ void move_wrist(bool revolve, bool invert);//move the wrist based on its states
 void setup() {
 
     //built_in teensy LED
-    pinMode(LED_PIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);//usb serial line
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_BUILTIN, HIGH);
 
     //blink to signify boot
     delay(2000);
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
 
     Serial3.begin(115200);//Digit board serial line
 
@@ -115,11 +114,11 @@ void setup() {
   //-----------------//
 
   //Setup CAN bus
-    myCan.begin(); // Initialize CAN bus settings
-    myCan.setBaudRate(1000000);
-    myCan.setMaxMB(16);
-    myCan.enableFIFO();
-    myCan.enableFIFOInterrupt();
+    CAN.begin(); // Initialize CAN bus settings
+    CAN.setBaudRate(1000000);
+    CAN.setMaxMB(16);
+    CAN.enableFIFO();
+    CAN.enableFIFOInterrupt();
 
   //Setup axis 0
     axis0.attach(19);
@@ -308,7 +307,7 @@ void cmd_check(){
           int motor_index = args[2].toInt() - 1; //get the motor id (-1 for index)
 
           motorList[motor_index].setDuty(args[3].toFloat());
-          //sendDutyCycle(myCan, motorList[motor_index].getID(), motorList[motor_index].getDuty()); // update motors with current duty cycle
+          //sendDutyCycle(CAN, motorList[motor_index].getID(), motorList[motor_index].getDuty()); // update motors with current duty cycle
         }
         lastCtrlCmd = millis();//update last control command time
 
@@ -317,7 +316,7 @@ void cmd_check(){
 
         for (int j = 0; j < 3; j++) {
           motorList[j].setDuty(0);
-          sendDutyCycle(myCan, motorList[j].getID(), 0.0); // stop all motors
+          sendDutyCycle(CAN, motorList[j].getID(), 0.0); // stop all motors
         }
         
         x0_state = 0; //axis 0 movement to stop
@@ -360,14 +359,14 @@ void cmd_check(){
       Serial.printf("Sending to faerie: %s\n", command.c_str());
     }else if (args[0] == "data") {  
       /*
-        digitalWrite(LED_PIN, HIGH); 
+        digitalWrite(LED_BUILTIN, HIGH); 
         // Serial.print("Angle: ");                        // print some text to the serial consol.
         // Serial.println(encoder1.readAngleDegree());      // read the angle value from the AS5047P sensor an print it to the serial consol.
         // delay(500);                                     // wait for 500 milli seconds.
         data_bool = true; 
         
         // wait
-        digitalWrite(LED_PIN, LOW);                     // deactivate the led.
+        digitalWrite(LED_BUILTIN, LOW);                     // deactivate the led.
         delay(500);
         */
     }
@@ -376,43 +375,6 @@ void cmd_check(){
 }
 
 
-
-// Parse `input` into `args` separated by `delim`
-// Ex: "ctrl,led,on" => {ctrl,led,on}
-// Equivalent to Python's `.split()`
-void parseInput(const String input, std::vector<String>& args, char delim) {
-    //Modified from https://forum.arduino.cc/t/how-to-split-a-string-with-space-and-store-the-items-in-array/888813/9
-
-    // Index of previously found delim
-    int lastIndex = -1;
-    // Index of currently found delim
-    int index = -1;
-    // because lastIndex=index, lastIndex starts at -1, so with lastIndex+1, first search begins at 0
-
-    // if empty input for some reason, don't do anything
-    if(input.length() == 0)
-        return;
-
-    unsigned count = 0;
-    while (count++, count < 200 /*arbitrary limit on number of delims because while(true) is scary*/) {
-        lastIndex = index;
-        // using lastIndex+1 instead of input = input.substring to reduce memory impact
-        index = input.indexOf(delim, lastIndex+1);
-        if (index == -1) { // No instance of delim found in input
-            // If no delims are found at all, then lastIndex+1 == 0, so whole string is passed.
-            // Otherwise, only the last part of input is passed because of lastIndex+1.
-            args.push_back(input.substring(lastIndex+1));
-            // Exit the loop when there are no more delims
-            break;
-        } else { // delim found
-            // If this is the first delim, lastIndex+1 == 0, so starts from beginning
-            // Otherwise, starts from last found delim with lastIndex+1
-            args.push_back(input.substring(lastIndex+1, index));
-        }
-    }
-
-    // output is via vector<String>& args
-}
 
 
 void update_x0()
@@ -439,18 +401,18 @@ void update_x0()
 
 ///*
 void loopHeartbeats(){//provide heartbeat for spark max controllers
-    myCan.begin();
-    myCan.setBaudRate(1000000);
-    myCan.setMaxMB(16);
-    myCan.enableFIFO();
-    myCan.enableFIFOInterrupt();
+    CAN.begin();
+    CAN.setBaudRate(1000000);
+    CAN.setMaxMB(16);
+    CAN.enableFIFO();
+    CAN.enableFIFOInterrupt();
 
     while(1){
-      sendHeartbeat(myCan, 1);
+      sendHeartbeat(CAN, 1);
       threads.delay(5);
-      sendHeartbeat(myCan, 2);
+      sendHeartbeat(CAN, 2);
       threads.delay(5);
-      sendHeartbeat(myCan, 3);
+      sendHeartbeat(CAN, 3);
       threads.delay(5);
       threads.yield();
     }
@@ -483,7 +445,7 @@ void safety_timeout(){
     for(int m = 0; m < 3; m++)
     {
       motorList[m].setDuty(0);//stop all motors
-      sendDutyCycle(myCan, motorList[m].getID(), 0);//send stop command to all motors
+      sendDutyCycle(CAN, motorList[m].getID(), 0);//send stop command to all motors
     }
     x0_state = 0;//stop axis 0
 
@@ -544,7 +506,7 @@ void update_motors()
   {
     for(int j = 0; j < 3; j++)
     {
-      sendDutyCycle(myCan, motorList[j].getID(), motorList[j].getDuty());
+      sendDutyCycle(CAN, motorList[j].getID(), motorList[j].getDuty());
     }
     lastMotorUpdate = millis();
   }
