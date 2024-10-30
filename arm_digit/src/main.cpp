@@ -2,10 +2,6 @@
 #include <Arduino.h>
 #include <Servo.h>
 
-#include <cmath>
-#include <cstdlib>
-#include <iostream>
-#include <string>
 #include <vector>
 
 #include "AstraMisc.h"
