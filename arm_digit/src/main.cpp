@@ -13,7 +13,7 @@
 
 using namespace std;
 
-Servo myservo;
+Servo efMotor;
 
 #define PIN_LASER 8  // GPIO 8  // moved to rover-Embedded-Lib in 0.6.0
 
@@ -46,7 +46,7 @@ void setup() {
     pinMode(PIN_LASER, OUTPUT);  // GPIO 8
     digitalWrite(PIN_LASER, LOW);
 
-    myservo.attach(19);  // GPIO 19, Physically pin 25
+    efMotor.attach(PIN_EF_MOTOR);  // GPIO 19, Physically pin 25
 }
 
 void EFcontrol(float speed, bool &moveT_F);
@@ -70,7 +70,7 @@ void loop() {
     if (millis() - clockTimer > 1000) {  // temporarily set to 1 second
         clockTimer = millis();
         EFcontrolReal = 0;
-        myservo.writeMicroseconds(1500);
+        efMotor.writeMicroseconds(1500);
         // COMMS_UART.print("PING\n");
         // Serial.println("PING\n");
 #ifdef DEBUG
@@ -149,6 +149,6 @@ void loop() {
 
 void EFcontrol(float speed, bool &moveT_F) {
     if (moveT_F) {
-        myservo.writeMicroseconds(speed);
+        efMotor.writeMicroseconds(speed);
     }
 }
