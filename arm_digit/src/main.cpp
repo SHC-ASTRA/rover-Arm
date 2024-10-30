@@ -95,34 +95,40 @@ void loop() {
         std::vector<String> args = {};
         parseInput(command, args, ',');
 
-        if (args[0] == "digit") {  // Is looking for a command that looks like
-                                   // "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
+        // Comes from ROS -> socket raspi ->UART-> socket teensy 4.1 ->UART-> Digit
+        if (command == "digit") {
+            // Remove first argument, which is "digit" to tell socket teensy to redirect to digit
+            args.erase(args.begin());
+            // Our command is not "digit", but what comes after it
+            command = args[0];
+            command.toLowerCase();
+        }
 
-            if (args[1] == "ctrl") {
-                clockTimer = millis();
-                EFcontrolReal = 1;
-                if (args[2] == "1")  // close
-                {
-                    EFcontrol(0, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
-                } else if (args[2] == "-1")       // open
-                {
-                    EFcontrol(2500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
-                } else if (args[2] == "0")           // stop
-                {
-                    EFcontrol(1500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
-                }
-
+        if (args[0] == "ctrl") {  // Is looking for a command that looks like
+                                    // "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
 #ifdef DEBUG
-                Serial.println("controling");
+            Serial.println("controling");
 #endif
-            } else if (args[1] == "laser") {  //
-                if (args[2] == "0") {
-                    digitalWrite(PIN_LASER, LOW);
-                } else if (args[2] == "1") {
-                    digitalWrite(PIN_LASER, HIGH);
-                }
+            clockTimer = millis();
+            EFcontrolReal = 1;
+            if (args[1] == "1")  // close
+            {
+                EFcontrol(0, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
+            } else if (args[1] == "-1")       // open
+            {
+                EFcontrol(2500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
+            } else if (args[1] == "0")           // stop
+            {
+                EFcontrol(1500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
             }
 
+        } else if (args[0] == "laser") {
+            if (args[1] == "0") {
+                digitalWrite(PIN_LASER, LOW);
+            } else if (args[1] == "1") {
+                digitalWrite(PIN_LASER, HIGH);
+            }
+        
         } else if (args[0] == "ping") {
             Serial.println("pong");
             COMMS_UART.println("pong");
