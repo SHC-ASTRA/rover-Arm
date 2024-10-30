@@ -1,4 +1,14 @@
-// Includes
+/**
+ * @file main.cpp
+ * @author Tristan McGinnis (tlm0047@uah.edu)
+ * @brief Digit PCB's Pico code. Controls end effector.
+ * 
+ */
+
+//----------//
+// Includes //
+//----------//
+
 #include <Arduino.h>
 #include <Servo.h>
 
@@ -9,51 +19,81 @@
 
 using namespace std;
 
-Servo efMotor;
 
-#define PIN_LASER 8  // GPIO 8  // moved to rover-Embedded-Lib in 0.6.0
+//-------------//
+// Global vars //
+//-------------//
+
+Servo efMotor;
 
 #define BLINK
 // #define DEBUG
 
 
-unsigned long clockTimer = millis();
+// millis value of last control command received
+unsigned long lastCtrlCmd = millis();
+// Whether the last servo control was due to control command (1) or timeout (0)
 bool EFcontrolReal;
 
+// millis value of last LED blink
 unsigned long lastBlink = 0;
 bool ledState = true;
 
+
+//------------//
+// Prototypes //
+//------------//
+
+void EFcontrol(float speed, bool &moveT_F);
+
+
+//-------------//
+// Begin Setup //
+//-------------//
 
 void setup() {
     //-----------------//
     // Initialize Pins //
     //-----------------//
 
+    // Serial and onboard LED
     pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(SERIAL_BAUD);
     COMMS_UART.begin(COMMS_UART_BAUD);
-    digitalWrite(LED_BUILTIN, HIGH);
 
+    // Show with LED that pico is starting
+    digitalWrite(LED_BUILTIN, HIGH);
     delay(2000);
     digitalWrite(LED_BUILTIN, LOW);
 
-    // pinMode(20, INPUT_PULLUP); //Needed for IMU to work on PCB <-this line is from core rover,
-    // but leaving it here
-    pinMode(PIN_LASER, OUTPUT);  // GPIO 8
+    // Laser
+    pinMode(PIN_LASER, OUTPUT);
     digitalWrite(PIN_LASER, LOW);
 
-    efMotor.attach(PIN_EF_MOTOR);  // GPIO 19, Physically pin 25
+    // EF motor
+    efMotor.attach(PIN_EF_MOTOR);
 }
-
-void EFcontrol(float speed, bool &moveT_F);
-
 
 
 //------------//
 // Begin Loop //
 //------------//
+//
+//
+//-------------------------------------------------//
+//                                                 //
+//    /////////      //            //////////      //
+//    //      //     //            //        //    //
+//    //      //     //            //        //    //
+//    ////////       //            //////////      //
+//    //      //     //            //              //
+//    //       //    //            //              //
+//    /////////      //////////    //              //
+//                                                 //
+//-------------------------------------------------//
 
 void loop() {
+    // Blink LED
 #ifdef BLINK
     if (millis() - lastBlink > 1000) {
         lastBlink = millis();
@@ -62,13 +102,11 @@ void loop() {
     }
 #endif
 
-
-    if (millis() - clockTimer > 1000) {  // temporarily set to 1 second
-        clockTimer = millis();
+    // Motor control timeout
+    if (millis() - lastCtrlCmd > 1000) {  // temporarily set to 1 second
+        lastCtrlCmd = millis();
         EFcontrolReal = 0;
         efMotor.writeMicroseconds(1500);
-        // COMMS_UART.print("PING\n");
-        // Serial.println("PING\n");
 #ifdef DEBUG
         Serial.println("Stopping servo");
 #endif
@@ -82,6 +120,7 @@ void loop() {
     if (COMMS_UART.available()) {
         String command = COMMS_UART.readStringUntil('\n');
         command.trim();
+        command.toLowerCase();
 #ifdef DEBUG
         Serial.print("[IN]: ");
         Serial.print(command);
@@ -101,11 +140,11 @@ void loop() {
         }
 
         if (args[0] == "ctrl") {  // Is looking for a command that looks like
-                                    // "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
+                                  // "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
 #ifdef DEBUG
             Serial.println("controling");
 #endif
-            clockTimer = millis();
+            lastCtrlCmd = millis();
             EFcontrolReal = 1;
             if (args[1] == "1")  // close
             {
@@ -124,7 +163,7 @@ void loop() {
             } else if (args[1] == "1") {
                 digitalWrite(PIN_LASER, HIGH);
             }
-        
+
         } else if (args[0] == "ping") {
             Serial.println("pong");
             COMMS_UART.println("pong");
@@ -133,6 +172,7 @@ void loop() {
         }
     }
 
+    // Take input from USB for debugging
     if (Serial.available()) {
         String command = Serial.readStringUntil('\n');
         command.trim();
