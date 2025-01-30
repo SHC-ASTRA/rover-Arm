@@ -12,6 +12,7 @@
 
 #include <Arduino.h>
 
+
 #include <cmath>
 
 #include "AstraMisc.h"
@@ -56,6 +57,8 @@ AstraMotors MotorAxis1(&Can0, MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true, 
 AstraMotors MotorAxis2(&Can0, MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
 AstraMotors MotorAxis3(&Can0, MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
 
+AstraMotors* motorList[] = {&MotorAxis1, &MotorAxis2, &MotorAxis3};
+
 //----------//
 //  Timing  //
 //----------//
@@ -67,22 +70,24 @@ unsigned long lastHB = 0;
 int heartBeatNum = 1;
 unsigned long lastCtrlCmd = 0;
 unsigned long lastMotorStatus = 0;
+bool safetyOn = true;
 
+bool AXC  [] = {true,true,true};     // AxisXComplete    where x = 1..3
+int  AXSP [] = {0,0,0};              // AxisXSetPosition ^^^
+int  AXP  [] = {0,0,0};              // AxisXPosition    ^^^
 
 //--------------//
 //  Prototypes  //
 //--------------//
 
-void turnCW();
-void turnCCW();
-void Stop();
+bool setAxisDeg(int axis, int degrees, int timeout, bool rel_abs);      // set what degree the axis is trying to go to
+void setAxisSpeeds(int A1Speed, int A2Speed, int A3Speed);                                 // set speed at which an axis moves
 void Brake(bool enable);
-void goForwards(float speed);
-void goBackwards(float speed);
 void loopHeartbeats();
 void safety_timeout();
-void driveMeters(float meters);
 float getDriveSpeed();
+void updateMotorStatus();
+void Stop();
 
 
 //------------------------------------------------------------------------------------------------//
@@ -113,8 +118,8 @@ void setup() {
     //  Communications  //
     //------------------//
 
-    Serial.begin(SERIAL_BAUD);
-    Serial1.begin(COMMS_UART_BAUD);
+    Serial.begin(SERIAL_BAUD);              // Communication between motor MCU and Type-C Port
+    COMMS_UART.begin(COMMS_UART_BAUD);      // Communication between both the main and motor microcontroller
 
     //-----------//
     //  Sensors  //
@@ -224,21 +229,21 @@ void loop() {
         uint32_t apiId = (msgId >> 6) & 0x3FF;
 
         if (apiId == 0x60) {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < MOTOR_AMOUNT; i++) {
                 if (deviceId == motorList[i]->getID()) {
                     motorList[i]->parseStatus0(rxFrame.data);
                     break;
                 }
             }
         } else if (apiId == 0x61) {  // Status 1
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < MOTOR_AMOUNT; i++) {
                 if (deviceId == motorList[i]->getID()) {
                     motorList[i]->parseStatus1(rxFrame.data);
                     break;
                 }
             }
         } else if (apiId == 0x62) {  // Status 2
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < MOTOR_AMOUNT; i++) {
                 if (deviceId == motorList[i]->getID()) {
                     motorList[i]->parseStatus2(rxFrame.data);
                     break;
@@ -251,7 +256,7 @@ void loop() {
             Serial.print("Got parameter ");
             Serial.print(apiId & 0xFF, HEX);
             Serial.print(" for: ");
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < MOTOR_AMOUNT; i++) {
                 if (deviceId == motorList[i]->getID()) {
                     Serial.print(i);
                 }
@@ -351,7 +356,7 @@ void loop() {
             COMMS_UART.println("pong");
 #else
             Serial.println("pong");
-            Serial1.println("pong");
+            COMMS_UART.println("pong");
 #endif
         } 
         else if (args[0] == "time") 
@@ -373,22 +378,16 @@ void loop() {
             {
                 prevCommand = command;
 
-                if (checkArgs(args, 2))
-                {
-                    motorList[0]->setDuty(args[1].toFloat());
-                    motorList[1]->setDuty(args[1].toFloat());
-
-                    motorList[2]->setDuty(args[2].toFloat());
-                    motorList[3]->setDuty(args[2].toFloat());
-                } else if (checkArgs(args, 1))
-                {
-                    motorList[0]->setDuty(args[1].toFloat());
-                    motorList[1]->setDuty(args[1].toFloat());
-
-                    motorList[2]->setDuty(-1 * args[1].toFloat());
-                    motorList[3]->setDuty(-1 * args[1].toFloat());
+                setAxisSpeeds(args[4].toInt(),args[5].toInt(),args[6].toInt());
+                for (int i = 1; i <= MOTOR_AMOUNT; i++) {
+                    AXSP[i-1] = args[i].toInt();
                 }
+                
             }
+        }
+        else if (args[0] == "safetyOff")
+        {
+            safetyOn = false;
         }
 
         else if (args[0] == "brake") 
@@ -407,38 +406,6 @@ void loop() {
 #ifdef DEBUG
                 Serial.println("Setting brakemode off.");
 #endif
-            }
-        }
-
-        else if (args[0] == "auto") // Commands for autonomy
-        { 
-            lastCtrlCmd = millis();
-            if (command != prevCommand)
-            {
-                if (args[1] == "forwards") // auto,forwards
-                {  
-                    goForwards(args[2].toFloat());
-                }
-
-                else if (args[1] == "backwards") // auto,backwards
-                { 
-                    goBackwards(args[2].toFloat());
-                }
-
-                else if (args[1] == "TurnCW") // auto,backwards
-                { 
-                    turnCW();
-                }
-
-                else if (args[1] == "TurnCCW") // auto,backwards
-                { 
-                    turnCCW();
-                }
-
-                else if (args[1] == "stop") // auto,stop
-                {  
-                    Stop();
-                }
             }
         }
 #if defined(DEBUG) && !defined(OLD_ASTRACAN_ENABLE)
@@ -494,13 +461,14 @@ void loop() {
 
 void safety_timeout()
 {
-    if (millis() - lastCtrlCmd > 2000)  // if no control commands are received for 2 seconds
+    
+    if (safetyOn && (millis() - lastCtrlCmd > 2000))  // if no control commands are received for 2 seconds
     {
         lastCtrlCmd = millis();
 
         // Only ignore safety timeout if all motors are rotating
         bool allRotating = true;
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < MOTOR_AMOUNT; i++)
         {
             if (!motorList[i]->isRotToPos())
             {
@@ -515,6 +483,42 @@ void safety_timeout()
         Stop();
     }
 }
+
+void setAxisSpeeds(int A1Speed, int A2Speed, int A3Speed)
+{
+    motorList[0]->sendDuty(A1Speed);
+    motorList[1]->sendDuty(A2Speed);
+    motorList[2]->sendDuty(A3Speed);
+}
+
+// Bypasses the acceleration to make the rover stop
+// Should only be used for autonomy, but it could probably be used elsewhere
+void Stop()
+{
+    for (int i = 0; i < MOTOR_AMOUNT; i++) {
+        motorList[i]->stop();
+    }
+}
+
+
+
+void updateMotorStatus()
+{
+    for (int i = 1; i <= MOTOR_AMOUNT; i++)
+    {
+        if(!AXC[i-1])
+        {
+            if(abs(AXP[i-1] - AXSP[i-1]) < 10)
+            {
+                motorList[i-1]->stop();
+                AXC[i-1] = true;
+            }
+        }
+    }
+    
+}
+
+/*
 
 // Bypasses the acceleration to make the rover turn clockwise
 // Should only be used for autonomy
@@ -579,10 +583,12 @@ void driveMeters(float meters) {
 
 float getDriveSpeed() {
     float sum;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < MOTOR_AMOUNT; i++) {
         sum += abs(motorList[i]->status1.sensorVelocity);
     }
     const float avgSpeed = sum / 4;  // RPM
     const float gearBox = 64;  // 64:1 for testbed
     return (avgSpeed / gearBox) * WHEEL_CIRCUMFERENCE / 60;  // meters per second
 }
+
+*/
