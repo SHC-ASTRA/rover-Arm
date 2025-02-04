@@ -515,6 +515,12 @@ void updateMotorStatus()
     
 }
 
+// Enables or disables brake mode for all motors
+void Brake(bool enable) {
+    for (int i = 0; i < 4; i++)
+        motorList[i]->setBrake(enable);
+}
+
 /*
 
 // Bypasses the acceleration to make the rover turn clockwise
@@ -540,12 +546,6 @@ void Stop()
     for (int i = 0; i < 4; i++) {
         motorList[i]->stop();
     }
-}
-
-// Enables or disables brake mode for all motors
-void Brake(bool enable) {
-    for (int i = 0; i < 4; i++)
-        motorList[i]->setBrake(enable);
 }
 
 // Tells the rover to go forwards
