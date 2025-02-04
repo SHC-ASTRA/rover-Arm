@@ -48,14 +48,11 @@
 //  Component classes  //
 //---------------------//
 
-// Setting up for CAN0 line
-AstraCAN Can0;
-
 // AstraMotors(AstraCAN* setCanObject, int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float
 // setMaxDuty)
-AstraMotors MotorAxis1(&Can0, MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
-AstraMotors MotorAxis2(&Can0, MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
-AstraMotors MotorAxis3(&Can0, MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
+AstraMotors MotorAxis1(&ESP32Can, MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
+AstraMotors MotorAxis2(&ESP32Can, MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
+AstraMotors MotorAxis3(&ESP32Can, MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
 
 AstraMotors* motorList[] = {&MotorAxis1, &MotorAxis2, &MotorAxis3};
 
@@ -130,7 +127,7 @@ void setup() {
     //--------------------//
 
     // Setup CAN
-    if (Can0.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX)) 
+    if (ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX)) 
     {
         COMMS_UART.println("CAN bus started!");
     } 
@@ -178,7 +175,7 @@ void loop() {
     // Heartbeat for REV motors
     if (millis() - lastHB >= 3)
     {
-        sendHeartbeat(Can0, heartBeatNum);
+        sendHeartbeat(ESP32Can, heartBeatNum);
         lastHB = millis();
         heartBeatNum++;
         if (heartBeatNum > 4)
@@ -410,24 +407,24 @@ void loop() {
         }
 #if defined(DEBUG) && !defined(OLD_ASTRACAN_ENABLE)
         else if (args[0] == "id") {
-            CAN_identifySparkMax(2, Can0);
+            CAN_identifySparkMax(2, ESP32Can);
         }
         else if (args[0] == "speed" && checkArgs(args, 1)) {
-            CAN_sendVelocity(MOTOR_ID_BL, args[1].toFloat(), Can0);
+            CAN_sendVelocity(MOTOR_ID_BL, args[1].toFloat(), ESP32Can);
         }
         else if (args[0] == "newduty") {
             Serial.print("Setting duty cycle ");
             Serial.println(args[1].toFloat());
-            CAN_sendDutyCycle(1, args[1].toFloat(), Can0);
-            CAN_sendDutyCycle(2, args[1].toFloat(), Can0);
-            CAN_sendDutyCycle(3, args[1].toFloat(), Can0);
-            CAN_sendDutyCycle(4, args[1].toFloat(), Can0);
+            CAN_sendDutyCycle(1, args[1].toFloat(), ESP32Can);
+            CAN_sendDutyCycle(2, args[1].toFloat(), ESP32Can);
+            CAN_sendDutyCycle(3, args[1].toFloat(), ESP32Can);
+            CAN_sendDutyCycle(4, args[1].toFloat(), ESP32Can);
         }
         else if (args[0] == "stop") {
             Serial.println("Stopping all motors");
             for (int i = 0; i < 4; i++)
             {
-                CAN_sendDutyCycle(i, 0, Can0);
+                CAN_sendDutyCycle(i, 0, ESP32Can);
                 Stop();
             }
         }
