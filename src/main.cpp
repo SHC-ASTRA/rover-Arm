@@ -10,7 +10,6 @@
 //----------//
 
 #include <Arduino.h>
-#include <ESP32Servo.h>
 
 #include <vector>
 
@@ -23,8 +22,6 @@ using namespace std;
 //-------------//
 // Global vars //
 //-------------//
-
-Servo efMotor;
 
 #define BLINK
 // #define DEBUG
@@ -43,8 +40,6 @@ bool ledState = true;
 //------------//
 // Prototypes //
 //------------//
-
-void EFcontrol(float speed, bool &moveT_F);
 
 
 //-------------//
@@ -69,9 +64,6 @@ void setup() {
     // Laser
     pinMode(PIN_LASER, OUTPUT);
     digitalWrite(PIN_LASER, LOW);
-
-    // EF motor
-    efMotor.attach(PIN_EF_MOTOR);
 }
 
 
@@ -106,7 +98,6 @@ void loop() {
     if (millis() - lastCtrlCmd > 1000) {  // temporarily set to 1 second
         lastCtrlCmd = millis();
         EFcontrolReal = 0;
-        efMotor.writeMicroseconds(1500);
 #ifdef DEBUG
         Serial.println("Stopping servo");
 #endif
@@ -148,13 +139,13 @@ void loop() {
             EFcontrolReal = 1;
             if (args[1] == "1")  // close
             {
-                EFcontrol(0, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
+                // EFcontrol(0, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
             } else if (args[1] == "-1")       // open
             {
-                EFcontrol(2500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
+                // EFcontrol(2500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
             } else if (args[1] == "0")           // stop
             {
-                EFcontrol(1500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
+                // EFcontrol(1500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
             }
 
         } else if (args[0] == "laser") {
@@ -185,12 +176,5 @@ void loop() {
         // COMMS_UART.print("hereiscommand,");
         // COMMS_UART.println(command);
 #endif
-    }
-}
-
-
-void EFcontrol(float speed, bool &moveT_F) {
-    if (moveT_F) {
-        efMotor.writeMicroseconds(speed);
     }
 }
