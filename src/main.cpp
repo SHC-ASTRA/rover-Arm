@@ -69,8 +69,15 @@ void setup() {
     delay(1000);
     digitalWrite(LED_BUILTIN, LOW);
 
+    // Laser
     pinMode(LASER_NMOS, OUTPUT);
     digitalWrite(LASER_NMOS, LOW);
+
+    // Linear actuator
+    pinMode(LINAC_RIN, OUTPUT);
+    pinMode(LINAC_FIN, OUTPUT);
+    digitalWrite(LINAC_RIN, LOW);
+    digitalWrite(LINAC_FIN, LOW);
 
 
     //------------------//
@@ -128,6 +135,8 @@ void loop() {
         // Stop LSS
         // Stop EF motor
         // Stop lin ac
+        digitalWrite(LINAC_RIN, LOW);
+        digitalWrite(LINAC_FIN, LOW);
 #ifdef DEBUG
         Serial.println("Control timeout");
 #endif
@@ -203,24 +212,23 @@ void loop() {
         //  Motors  //
         //----------//
 
-        else if (args[0] == "ctrl") {  // Is looking for a command that looks like
-                                  // "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
-#ifdef DEBUG
-            Serial.println("controling");
-#endif
+        else if (command == "ctrl") {
             lastCtrlCmd = millis();
-            if (args[1] == "1")  // close
-            {
-                // EFcontrol(0, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
-            } else if (args[1] == "-1")       // open
-            {
-                // EFcontrol(2500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
-            } else if (args[1] == "0")           // stop
-            {
-                // EFcontrol(1500, EFcontrolReal);  // 0(close)-2500(open) with 1500 as stop
+
+            if (args[1] == "lin_ac") {
+                if (args[2] == "1") {
+                    digitalWrite(LINAC_RIN, LOW);
+                    digitalWrite(LINAC_FIN, HIGH);
+                } else if (args[2] == "0") {
+                    digitalWrite(LINAC_RIN, HIGH);
+                    digitalWrite(LINAC_FIN, HIGH);
+                } else if (args[2] == "-1") {
+                    digitalWrite(LINAC_RIN, HIGH);
+                    digitalWrite(LINAC_FIN, LOW);
+                }
             }
 
-        } else if (args[0] == "laser") {
+        } else if (command == "laser") {
             if (args[1] == "0") {
                 digitalWrite(LASER_NMOS, LOW);
             } else if (args[1] == "1") {
