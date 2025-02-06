@@ -1,7 +1,8 @@
 /**
- * @file Template.cpp
- * @author your name (you@domain.com)
- * @brief description
+ * @file main.cpp
+ * @author Tristan McGinnis (tlm0047@uah.edu)
+ * @author David Sharpe (ds0196@uah.edu)
+ * @brief Digit ESP32; controls End Effector and Wrist
  *
  */
 
