@@ -13,6 +13,7 @@
 #include <Arduino.h>
 #include "AstraMisc.h"
 #include "project/DIGIT.h"
+#include <LSS.h>
 
 
 //------------//
@@ -26,6 +27,9 @@
 //---------------------//
 //  Component classes  //
 //---------------------//
+
+LSS topLSS = LSS(LSS_TOP_ID);
+LSS bottomLSS = LSS(LSS_BOTTOM_ID);
 
 
 //----------//
@@ -85,7 +89,6 @@ void setup() {
     //------------------//
 
     Serial.begin(SERIAL_BAUD);
-    Serial1.begin(COMMS_UART_BAUD);
 
 
     //-----------//
@@ -97,7 +100,18 @@ void setup() {
     //  Misc. Components  //
     //--------------------//
 
-    // LSS will go here
+    LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
+
+    // LSS Settings from last year's Arm
+    topLSS.setMaxSpeed(100);
+    bottomLSS.setMaxSpeed(100);
+
+    // Complete LSS configuration
+    topLSS.reset();
+    bottomLSS.reset();
+
+    // Wait for LSS reboot
+    delay(2000);
 }
 
 
@@ -225,6 +239,21 @@ void loop() {
                 } else if (args[2] == "-1") {
                     digitalWrite(LINAC_RIN, HIGH);
                     digitalWrite(LINAC_FIN, LOW);
+                }
+            }
+            else if (args[1] == "lss") {
+                if (args[2] == "reset") {
+                    topLSS.reset();
+                    bottomLSS.reset();
+                } else if (args[2] == "manual") {
+                    // For now, just take raw speeds for the two servos.
+                    // We can figure out the math for yaw/rotation at the same time later...
+                    topLSS.wheelRPM(args[3].toInt());
+                    bottomLSS.wheelRPM(args[4].toInt());
+                } else if (args[2] == "ik") {
+                    Serial.println("IK not implemented yet");
+                    // Will need math to figure out what yaw angle the wrist is currently at and how
+                    // to get to the target angle with the differential
                 }
             }
 
