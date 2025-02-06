@@ -41,6 +41,8 @@ bool ledState = false;
 
 unsigned long lastCtrlCmd = millis();
 
+uint32_t lastFault = 0;
+
 
 //--------------//
 //  Prototypes  //
@@ -82,6 +84,13 @@ void setup() {
     pinMode(LINAC_FIN, OUTPUT);
     digitalWrite(LINAC_RIN, LOW);
     digitalWrite(LINAC_FIN, LOW);
+
+    // End Effector motor
+    pinMode(MOTOR_IN1, OUTPUT);
+    pinMode(MOTOR_IN2, OUTPUT);
+    pinMode(MOTOR_FAULT, INPUT);  // External pull-up resistor
+    digitalWrite(MOTOR_IN1, LOW);
+    digitalWrite(MOTOR_IN2, LOW);
 
 
     //------------------//
@@ -147,13 +156,26 @@ void loop() {
     if (millis() - lastCtrlCmd > 2000) {
         lastCtrlCmd = millis();
         // Stop LSS
+        topLSS.wheelRPM(0);
+        bottomLSS.wheelRPM(0);
         // Stop EF motor
+        digitalWrite(MOTOR_IN1, LOW);
+        digitalWrite(MOTOR_IN2, LOW);
         // Stop lin ac
         digitalWrite(LINAC_RIN, LOW);
         digitalWrite(LINAC_FIN, LOW);
 #ifdef DEBUG
         Serial.println("Control timeout");
 #endif
+    }
+
+    // EF motor controller fault monitor
+    if (millis() - lastFault > 1000 && digitalRead(MOTOR_FAULT) == LOW) {
+        lastFault = millis();  // Always check unless there has been a fault <1 second ago
+        Serial.println("EF Motor fault detected: over-current, over-temperature, or under-voltage.");
+        // Stop EF motor
+        digitalWrite(MOTOR_IN1, LOW);
+        digitalWrite(MOTOR_IN2, LOW);
     }
 
 
@@ -254,6 +276,18 @@ void loop() {
                     Serial.println("IK not implemented yet");
                     // Will need math to figure out what yaw angle the wrist is currently at and how
                     // to get to the target angle with the differential
+                }
+            }
+            else if (args[1] == "ef") {
+                if (args[2] == "1") {
+                    digitalWrite(MOTOR_IN1, HIGH);
+                    digitalWrite(MOTOR_IN2, LOW);
+                } else if (args[2] == "0") {
+                    digitalWrite(MOTOR_IN1, HIGH);
+                    digitalWrite(MOTOR_IN2, HIGH);
+                } else if (args[2] == "-1") {
+                    digitalWrite(MOTOR_IN1, LOW);
+                    digitalWrite(MOTOR_IN2, HIGH);
                 }
             }
 
