@@ -11,9 +11,11 @@
 //------------//
 
 #include <Arduino.h>
-#include "AstraMisc.h"
-#include "project/DIGIT.h"
 #include <LSS.h>
+
+#include "AstraMisc.h"
+#include "AstraVicCAN.h"
+#include "project/DIGIT.h"
 
 
 //------------//
@@ -182,6 +184,49 @@ void loop() {
     //-------------//
     //  CAN Input  //
     //-------------//
+    if(vicCAN.readCan()) {
+        const uint8_t commandID = vicCAN.getCmdId();
+        static std::vector<double> canData;
+        vicCAN.parseData(canData);
+
+        Serial.print("VicCAN: ");
+        Serial.print(commandID);
+        Serial.print("; ");
+        if (canData.size() > 0) {
+            for (const double& data : canData) {
+                Serial.print(data);
+                Serial.print(", ");
+            }
+        }
+        Serial.println();
+
+
+        // General Misc
+
+        /**/ if (commandID == CMD_PING) {
+            vicCAN.respond(1);  // "pong"
+            Serial.println("Received ping over CAN");
+        }
+        else if (commandID == CMD_B_LED) {
+            if (canData.size() == 1) {
+                if (canData[0] == 0)
+                    digitalWrite(LED_BUILTIN, false);
+                if (canData[0] == 1)
+                    digitalWrite(LED_BUILTIN, true);
+            }
+        }
+
+        // Misc Physical Control
+
+        else if (commandID == CMD_LASER_CTRL) {
+            if (canData.size() == 1) {
+                if (canData[0] == 0)
+                    digitalWrite(LASER_NMOS, LOW);
+                if (canData[0] == 1)
+                    digitalWrite(LASER_NMOS, HIGH);
+            }
+        }
+    }
 
 
     //------------------//
