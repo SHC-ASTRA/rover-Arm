@@ -14,8 +14,11 @@
 #include <Arduino.h>
 #include <cmath>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
 =======
+=======
+>>>>>>> Stashed changes
 #include <FastLED.h>
 // Our own resources
 
@@ -23,6 +26,9 @@
 
 //#include "project/CORE.h"
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
@@ -56,6 +62,9 @@ CRGB leds[NUM_LEDS];
 
 //Sensor declarations
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 AstraCAN Can0;
 
@@ -338,10 +347,17 @@ void loop() {
         {
             Serial1.println(command);
 
+<<<<<<< Updated upstream
             int speed1 = args[1].toInt();
             int speed2 = args[2].toInt();
             int speed3 = args[3].toInt();
             int speed4 = args[4].toInt();
+=======
+            int speed1;
+            int speed2;
+            int speed3;
+            int speed4;
+>>>>>>> Stashed changes
 
             COMMS_UART.printf("ctrl,%s,%s,%s,%s", speed1, speed2, speed3, speed4);
 
