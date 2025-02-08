@@ -370,7 +370,7 @@ void loop() {
             {
                 prevCommand = command;
 
-                setAxisSpeeds(args[1].toInt(),args[2].toInt(),args[3].toInt());
+                setAxisSpeeds(args[2].toInt(),args[3].toInt(),args[4].toInt());
                 
             }
         }
