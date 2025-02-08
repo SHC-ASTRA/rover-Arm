@@ -62,16 +62,11 @@ AstraMotors* motorList[] = {&MotorAxis1, &MotorAxis2, &MotorAxis3};
 
 uint32_t lastBlink = 0;
 bool ledState = false;
-unsigned long lastAccel = 0;
 unsigned long lastHB = 0;
 int heartBeatNum = 1;
 unsigned long lastCtrlCmd = 0;
 unsigned long lastMotorStatus = 0;
 bool safetyOn = true;
-
-bool AXC  [] = {true,true,true};     // AxisXComplete    where x = 1..3
-int  AXSP [] = {0,0,0};              // AxisXSetPosition ^^^
-int  AXP  [] = {0,0,0};              // AxisXPosition    ^^^
 
 //--------------//
 //  Prototypes  //
@@ -375,16 +370,21 @@ void loop() {
             {
                 prevCommand = command;
 
-                setAxisSpeeds(args[4].toInt(),args[5].toInt(),args[6].toInt());
-                for (int i = 1; i <= MOTOR_AMOUNT; i++) {
-                    AXSP[i-1] = args[i].toInt();
-                }
+                setAxisSpeeds(args[1].toInt(),args[2].toInt(),args[3].toInt());
                 
             }
         }
         else if (args[0] == "safetyOff")
         {
             safetyOn = false;
+        }
+        else if (args[0] == "Stop")
+        {
+            Stop();
+        }
+        else if (args[0] == "stopAX")
+        {
+            motorList[args[1].toInt()-1]->stop();
         }
 
         else if (args[0] == "brake") 
@@ -483,9 +483,9 @@ void safety_timeout()
 
 void setAxisSpeeds(int A1Speed, int A2Speed, int A3Speed)
 {
-    motorList[0]->sendDuty(A1Speed);
-    motorList[1]->sendDuty(A2Speed);
-    motorList[2]->sendDuty(A3Speed);
+    motorList[0]->setDuty(A1Speed);
+    motorList[1]->setDuty(A2Speed);
+    motorList[2]->setDuty(A3Speed);
 }
 
 // Bypasses the acceleration to make the rover stop
@@ -495,30 +495,6 @@ void Stop()
     for (int i = 0; i < MOTOR_AMOUNT; i++) {
         motorList[i]->stop();
     }
-}
-
-
-
-void updateMotorStatus()
-{
-    for (int i = 1; i <= MOTOR_AMOUNT; i++)
-    {
-        if(!AXC[i-1])
-        {
-            if(abs(AXP[i-1] - AXSP[i-1]) < 10)
-            {
-                motorList[i-1]->stop();
-                AXC[i-1] = true;
-            }
-        }
-    }
-    
-}
-
-// Enables or disables brake mode for all motors
-void Brake(bool enable) {
-    for (int i = 0; i < 4; i++)
-        motorList[i]->setBrake(enable);
 }
 
 /*
@@ -546,6 +522,12 @@ void Stop()
     for (int i = 0; i < 4; i++) {
         motorList[i]->stop();
     }
+}
+
+// Enables or disables brake mode for all motors
+void Brake(bool enable) {
+    for (int i = 0; i < 4; i++)
+        motorList[i]->setBrake(enable);
 }
 
 // Tells the rover to go forwards
