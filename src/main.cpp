@@ -101,6 +101,11 @@ void setup() {
 
     Serial.begin(SERIAL_BAUD);
 
+    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX))
+        Serial.println("CAN bus started!");
+    else
+        Serial.println("CAN bus failed!");
+
 
     //-----------//
     //  Sensors  //
@@ -154,7 +159,7 @@ void loop() {
     }
 #endif
 
-    // Motor control timeout
+    // Motor control safety timeout
     if (millis() - lastCtrlCmd > 2000) {
         lastCtrlCmd = millis();
         // Stop LSS
@@ -167,7 +172,7 @@ void loop() {
         digitalWrite(LINAC_RIN, LOW);
         digitalWrite(LINAC_FIN, LOW);
 #ifdef DEBUG
-        Serial.println("Control timeout");
+        Serial.println("Safety timeout");
 #endif
     }
 
@@ -220,10 +225,18 @@ void loop() {
 
         else if (commandID == CMD_LASER_CTRL) {
             if (canData.size() == 1) {
-                if (canData[0] == 0)
+                if (canData[0] == 0) {
+#ifdef DEBUG
+                    Serial.println("Laser off");
+#endif
                     digitalWrite(LASER_NMOS, LOW);
-                if (canData[0] == 1)
+                }
+                else if (canData[0] == 1) {
+#ifdef DEBUG
+                    Serial.println("Laser on");
+#endif
                     digitalWrite(LASER_NMOS, HIGH);
+                }
             }
         }
     }
@@ -283,6 +296,10 @@ void loop() {
                 ledState = !ledState;
                 digitalWrite(LED_BUILTIN, ledState);
             }
+        }
+
+        else if (command == "can_relay_tovic") {
+            vicCAN.relayFromSerial(args);
         }
 
         //-----------//
