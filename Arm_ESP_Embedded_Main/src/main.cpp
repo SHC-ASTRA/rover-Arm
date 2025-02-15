@@ -13,7 +13,7 @@
 
 #include <Arduino.h>
 #include <cmath>
-#include <FastLED.h>
+
 // Our own resources
 
 #include "project/ARM.h"
@@ -31,22 +31,6 @@
 // Comment out to disable LED blinking
 #define BLINK
 
-// strip 1: 1-40
-// strip 2: 41-82
-// strip 3: 83-124
-// strip 4: 125-166
-// CCW: 1,2,3,4
-#define NUM_LEDS 166
-
-
-//---------------------//
-//  Component classes  //
-//---------------------//
-
-// LED Strip
-int led_rbg[3] = {0, 300, 0}; //When using multiple colors, use 255 max, when doing R/B/G use 800-900 for best brightness
-int led_counter = 0;
-CRGB leds[NUM_LEDS];
 
 //Sensor declarations
 
@@ -77,7 +61,9 @@ int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
 
 void outputEncoders();
 void safety_timeout();
-void updateMotorStatus();
+void findSpeedandTime(int time);
+void convertToDutyCycle(float& dpsSpeed, int gearRatio);
+void updateMotorState();
 
 // int findRotationDirection(float current_direction, float target_direction);
 // bool autoTurn(int time,float target_direction);
@@ -136,16 +122,6 @@ void setup()
         Serial.println("CAN bus started!");
     else
         Serial.println("CAN bus failed!");
-
-
-    //-----------//
-    //  Sensors  //
-    //-----------//
-
-
-    //--------------------//
-    //  Misc. Components  //
-    //--------------------//
 
     
 }
@@ -228,7 +204,7 @@ void loop() {
         // REV
 
         else if (commandID == CMD_REV_STOP) {
-            COMMS_UART.println("ctrl,stop");
+            COMMS_UART.println("Stop");
         }
         else if (commandID == CMD_REV_IDENTIFY) {
             if (canData.size() == 1) {
@@ -292,7 +268,7 @@ void loop() {
         else if (command == "time") {
             Serial.println(millis());
         }
-
+        // Refers to the Built In LED, not LED strip
         else if (command == "led") {
             if (args[1] == "on")
                 digitalWrite(LED_BUILTIN, HIGH);
@@ -307,13 +283,15 @@ void loop() {
         //-----------//
         //  Sensors  //
         //-----------//
-
+        // TODO: Need to figure out how to output encoder values
+        // TODO Need to add voltage, current and temp of the motors
         else if (args[0] == "data") // Send data out
         {
 
-            if(args[1] == "sendEnc") // data,sendGPS
+            if(args[1] == "sendEnc") // data
             {
                 // outputEncoders();
+
             }
         }
 
@@ -321,41 +299,22 @@ void loop() {
         //  Physical  //
         //------------//
 
-        else if (args[0] == "ctrl") // Is looking for a command that looks like "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
+        else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
         {
-            COMMS_UART.print(command);
-            lastCtrlCmd = millis();
+            COMMS_UART.println(command);
         }
 
-        else if (args[0] == "Man") // Is looking for a command that looks like "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
+        else if (args[0] == "IKA") // Set the target angle for IK
         {
-            Serial1.println(command);
-
-            int speed1 = args[1].toInt();
-            int speed2 = args[2].toInt();
-            int speed3 = args[3].toInt();
-            int speed4 = args[4].toInt();
-
-            COMMS_UART.printf("ctrl,%s,%s,%s,%s", speed1, speed2, speed3, speed4);
-
-        }
-
-        else if (args[0] == "IKA") // Is looking for a command that looks like "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
-        {
-            Serial1.println(command);
-
-            //COMMS_UART.printf("ctrl,%s,%s,%s",args[4],args[5],args[6]);
-
-            for (int i = 1; i <= MOTOR_AMOUNT; i++) {
+            for (int i = 1; i <= MOTOR_AMOUNT; i++) 
+            {
                 AxisSetPosition[i-1] = args[i].toInt();
             }
         }
 
-        else if (args[0] == "IKT") // Is looking for a command that looks like "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
-        {
-            Serial1.println(command);
-
-            // findSpeedandTime(args[1].toInt(),args[2].toInt(),args[3].toInt(),args[4].toInt());
+        else if (args[0] == "IKT") // Set the speed for each controller based on the given time
+        {    
+            findSpeedandTime(args[1].toInt());
         }
     }
 
@@ -386,61 +345,65 @@ void loop() {
 //                                                    //
 //----------------------------------------------------//
 
-void safety_timeout(){
+void safety_timeout()
+{
   if(millis() - lastCtrlCmd > 2000)//if no control commands are received for 2 seconds
   {
     // lastCtrlCmd = millis();//just update the var so this only runs every 2 seconds.
 
-    Serial1.println("ctrl,0,0,0");
+    COMMS_UART.println("ctrl,0,0,0");
     Serial.println("No Control / Safety Timeout");
   }
 }
 
-void findSpeedandTime(int ax0, int ax1, int ax2, int ax3)               // Based on how long it will take for axis 0 to get to target location
+
+// TODO: Needs to be complete- needs to get time to target and target angles per joint- how fast does the joint need to move
+void findSpeedandTime(int time)               // Based on how long it will take for axis 0 to get to target location
 {
-    
-    // find distance from ax current and ax desired
-    // d/v = t
-    // use for finding the speeds for all other joints
-    // v = d/t
+    float setSpeed[MOTOR_AMOUNT];
+    // Figure out the degrees per second
+    for (int i = 0; i < MOTOR_AMOUNT; i++)
+    {
+        setSpeed[i] = abs(AxisPosition[i] - AxisSetPosition[i])/time;
+    }
+
+    // Convert from dps to duty cycle
+    // Stepper moder doesn't need this
+    convertToDutyCycle(setSpeed[1], 5000);
+    convertToDutyCycle(setSpeed[2], 3750);
+    convertToDutyCycle(setSpeed[3], 2500);
+
+    // Send the ctrl, speed, speed, speed command here
+    COMMS_UART.printf("ctrl,%i,%i,%i",setSpeed[1],setSpeed[2],setSpeed[3]);
 }
 
-
-// Prints the output of the BNO in one line
-String outputBno()
+// Pass by reference because it's easier
+void convertToDutyCycle(float& dpsSpeed, int gearRatio)
 {
-    float bnoData2[7];
-    String output;
-    //sprintf(output,"%f,%f,%f,%f,%f,%f,%f",bnoData2[0],bnoData2[1],bnoData2[2],bnoData2[3],bnoData2[4],bnoData2[5],bnoData2[6]);
-    
-    return output;
+    dpsSpeed = (dpsSpeed*gearRatio)/11000; // Retarded solution, should be changed
 }
 
-
-void updateMotorStatus()
+void updateMotorState()
 {
     for (int i = 1; i <= MOTOR_AMOUNT; i++)
     {
         if(!AxisComplete[i-1])
         {
-            if(abs(AxisPosition[i-1] - AxisSetPosition[i-1]) < 10)  // 10 degree percision !!NOT GOOD NEEDS TO BE CHANGED!!
+            if(abs(AxisPosition[i-1] - AxisSetPosition[i-1]) < 1) //TODO: Validate 1 degree precision
             {
                 // motorList[i-1]->stop();
+                if (!i)
+                {
+                    // Stop the stepper motor
+                }
+                else
+                {
                 COMMS_UART.printf("stop,%i",i);
+                }
                 
                 AxisComplete[i-1] = true;
             }
         }
-    }
-    
+    } 
 }
 
-void setLED(int r_val, int b_val, int g_val)
-{
-    for(int i = 0; i < NUM_LEDS; ++i)
-    {
-      leds[i] = CRGB(r_val, b_val, g_val);
-      FastLED.show();
-      delay(10);
-    }
-}

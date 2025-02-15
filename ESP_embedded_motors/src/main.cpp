@@ -2,6 +2,7 @@
  * @file Main.cpp
  * @author Charles Marmann (cmm0077@uah.edu)
  * @author David Sharpe (ds0196@uah.edu)
+ * @author Jack Schumacher (js0342@uah.edu)
  * @brief Controls REV motors on ASTRA's Arm submodule
  *
  */
@@ -363,14 +364,14 @@ void loop() {
         //----------//
         //  Motors  //
         //----------//
-        else if (args[0] == "ctrl") // Is looking for a command that looks like "ctrl,LeftY-Axis,RightY-Axis" where LY,RY are >-1 and <1
+        else if (args[0] == "ctrl")      
         {   
             lastCtrlCmd = millis();
             if (command != prevCommand)
             {
                 prevCommand = command;
 
-                setAxisSpeeds(args[2].toInt(),args[3].toInt(),args[4].toInt());
+                setAxisSpeeds(args[1].toInt(), args[2].toInt(), args[3].toInt());
                 
             }
         }
@@ -382,7 +383,7 @@ void loop() {
         {
             Stop();
         }
-        else if (args[0] == "stopAX")
+        else if (args[0] == "stop") // Stop a specific joint
         {
             motorList[args[1].toInt()-1]->stop();
         }
@@ -463,19 +464,6 @@ void safety_timeout()
     {
         lastCtrlCmd = millis();
 
-        // Only ignore safety timeout if all motors are rotating
-        bool allRotating = true;
-        for (int i = 0; i < MOTOR_AMOUNT; i++)
-        {
-            if (!motorList[i]->isRotToPos())
-            {
-                allRotating = false;
-                break;
-            }
-        }
-        if (allRotating)
-            return;
-
         COMMS_UART.println("No Control, Safety Timeout");
         Stop();
     }
@@ -524,11 +512,13 @@ void Stop()
     }
 }
 
+*/
 // Enables or disables brake mode for all motors
 void Brake(bool enable) {
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < MOTOR_AMOUNT; i++)
         motorList[i]->setBrake(enable);
 }
+/*
 
 // Tells the rover to go forwards
 // Does not bypass acceleration
