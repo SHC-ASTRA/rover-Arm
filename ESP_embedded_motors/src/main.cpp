@@ -497,6 +497,19 @@ void Stop()
     }
 }
 
+void updateMotorStatus()
+{
+    for (int i = 1; i < 4; i++) {
+        String dataOut = "";
+        dataOut += std::toString(39)+",";
+        dataOut += std::toString(i)+","; 
+        dataOut += std::toString(motorList[i]->status1.motorTemperature)*10+",";
+        dataOut += std::toString(motorList[i]->status1.busVoltage)*10+",";
+        dataOut += std::toString(motorList[i]->status1.outputCurrent)*10+",";
+        COMMS_UART.println(dataOut);
+    }
+}
+
 /*
 
 // Bypasses the acceleration to make the rover turn clockwise
