@@ -185,7 +185,7 @@ void loop() {
     }
 #endif
 
-    if((millis()-lastMotorStep)>=AX0Speed)
+    if(((millis()-lastMotorStep)>=AX0Speed) && AX0En)
     {
         sd.step();
         lastMotorStep = millis();
@@ -280,6 +280,18 @@ void loop() {
 
                 String command = "ctrl," + String(canData[1]) + ',' + String(canData[2]) + ',' + String(canData[3]);
                 COMMS_UART.println(command);
+
+            
+            AX0Speed = abs(canData[0]) * 6;
+            if (canData[0] < 0)
+            {
+                sd.setDirection(TURNRIGHT);
+            }
+            else
+            {
+                sd.setDirection(TURNLEFT);
+            }
+            AX0En = true;
             }
         }
     }
@@ -356,6 +368,16 @@ void loop() {
         else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
         {
             COMMS_UART.println(command);
+            AX0Speed = abs(args[1].toInt()) * 6;
+            if (args[1].toInt() < 0)
+            {
+                sd.setDirection(TURNRIGHT);
+            }
+            else
+            {
+                sd.setDirection(TURNLEFT);
+            }
+            AX0En = true;
         }
 
         else if (args[0] == "IKA") // Set the target angle for IK
@@ -404,7 +426,7 @@ void safety_timeout()
   if(millis() - lastCtrlCmd > 2000)//if no control commands are received for 2 seconds
   {
     // lastCtrlCmd = millis();//just update the var so this only runs every 2 seconds.
-
+    AX0En = 0;
     COMMS_UART.println("ctrl,0,0,0");
     Serial.println("No Control / Safety Timeout");
   }
@@ -421,8 +443,6 @@ void findSpeedandTime(int time)               // Based on how long it will take 
         setSpeed[i] = abs(AxisPosition[i] - AxisSetPosition[i])/time;
     }
 
-    // Convert from dps to duty cycle
-    // Stepper moder doesn't need this
     convertToDutyCycleA0(setSpeed[0], 7.0625);
     convertToDutyCycle(setSpeed[1], 5000);
     convertToDutyCycle(setSpeed[2], 3750);
@@ -430,9 +450,6 @@ void findSpeedandTime(int time)               // Based on how long it will take 
 
     // Send the ctrl, speed, speed, speed command here
     COMMS_UART.printf("ctrl,%i,%i,%i",setSpeed[1],setSpeed[2],setSpeed[3]);
-
-    // Add stepper speed
-
 }
 
 // Pass by reference because it's easier
@@ -444,34 +461,43 @@ void convertToDutyCycle(double& dpsSpeed, float gearRatio)
 void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
 {
     // Steps per millisecond
-    dpsSpeed = (dpsSpeed*gearRatio)*7.63*1000; // Retarded solution, should be changed
+    dpsSpeed = (dpsSpeed*gearRatio)*7.63/1000;//0.05388
     // convert to period
     dpsSpeed = 1/dpsSpeed;
     #ifdef DEBUG
         Serial.printf("AX0 Period Set: %d", dpsSpeed);
     #endif
+    if (dpsSpeed < 0)
+    {
+        sd.setDirection(TURNRIGHT);
+    }
+    else
+    {
+        sd.setDirection(TURNLEFT);
+    }
     AX0Speed = dpsSpeed;
+    AX0En = true;
 }
 
 void updateMotorState()
 {
-    for (int i = 1; i <= MOTOR_AMOUNT; i++)
+    for (int i = 0; i <= MOTOR_AMOUNT; i++)
     {
-        if(!AxisComplete[i-1])
+        if(!AxisComplete[i])
         {
-            if(abs(AxisPosition[i-1] - AxisSetPosition[i-1]) < 1) //TODO: Validate 1 degree precision
+            if(abs(AxisPosition[i] - AxisSetPosition[i]) < 1)
             {
                 // motorList[i-1]->stop();
                 if (!i)
                 {
-                    // Stop the stepper motor
+                    AX0En = false;
                 }
                 else
                 {
                 COMMS_UART.printf("stop,%i",i);
                 }
                 
-                AxisComplete[i-1] = true;
+                AxisComplete[i] = true;
             }
         }
     } 
