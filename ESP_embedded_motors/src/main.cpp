@@ -503,9 +503,9 @@ void updateMotorStatus()
         String dataOut = "";
         dataOut += std::toString(39)+",";
         dataOut += std::toString(i)+","; 
-        dataOut += std::toString(motorList[i]->status1.motorTemperature)*10+",";
-        dataOut += std::toString(motorList[i]->status1.busVoltage)*10+",";
-        dataOut += std::toString(motorList[i]->status1.outputCurrent)*10+",";
+        dataOut += std::toString(motorList[i]->status1.motorTemperature*10)+",";
+        dataOut += std::toString(static_cast<int>(motorList[i]->status1.busVoltage*10))+",";
+        dataOut += std::toString(static_cast<int>(motorList[i]->status1.outputCurrent*10));
         COMMS_UART.println(dataOut);
     }
 }
