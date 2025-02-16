@@ -71,7 +71,8 @@ int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
 void outputEncoders();
 void safety_timeout();
 void findSpeedandTime(int time);
-void convertToDutyCycle(float& dpsSpeed, float gearRatio);
+void convertToDutyCycle(double& dpsSpeed, float gearRatio);
+void convertToDutyCycleA0(double& dpsSpeed, float gearRatio);
 void updateMotorState();
 
 // int findRotationDirection(float current_direction, float target_direction);
@@ -201,32 +202,47 @@ void loop() {
     safety_timeout();
 
 
-    //-------------//
+    //------------------//
     //  CAN Input  //
-    //-------------//
+    //------------------//
+    //
+    //
+    //-------------------------------------------------------//
+    //                                                       //
+    //      /////////          //\\          //\\      //    //
+    //    //                  //  \\         // \\     //    //
+    //    //                 //    \\        //  \\    //    //
+    //    //                /////\\\\\       //   \\   //    //
+    //    //               //        \\      //    \\  //    //
+    //    //              //          \\     //     \\ //    //
+    //      /////////    //            \\    //      \\//    //
+    //                                                       //
+    //-------------------------------------------------------//
 
     if(vicCAN.readCan()) {
         const uint8_t commandID = vicCAN.getCmdId();
         static std::vector<double> canData;
         vicCAN.parseData(canData);
 
-        Serial.print("VicCAN: ");
-        Serial.print(commandID);
-        Serial.print("; ");
-        if (canData.size() > 0) {
-            for (const double& data : canData) {
-                Serial.print(data);
-                Serial.print(", ");
+        #ifdef DEBUG
+            Serial.println("|------------------------------------------------------|");
+            Serial.print("| Main MCU VicCAN Recieved: ");
+            Serial.print(commandID);
+            Serial.print("; ");
+            if (canData.size() > 0) {
+                for (const double& data : canData) {
+                    Serial.print(data);
+                    Serial.print(", ");
+                }
             }
-        }
-        Serial.println();
-
+            Serial.println();
+        #endif
 
         // Misc
 
         /**/ if (commandID == CMD_PING) {
             vicCAN.respond(1);  // "pong"
-            Serial.println("Received ping over CAN");
+            // Serial.println("Received ping over CAN");
         }
         else if (commandID == CMD_B_LED) {
             if (canData.size() == 1) {
@@ -259,7 +275,8 @@ void loop() {
         else if (commandID == CMD_ARM_IK_CTRL) {
             if (canData.size() == 4) {
                 #ifdef DEBUG
-                    COMMS_UART.println("Got IK Angle,");
+                    Serial.println("|------------------------------------------------------|");
+                    Serial.println("| VicCan IK Angle cmd recieved                         |");
                 #endif
                 for (int i = 0; i <= MOTOR_AMOUNT; i++) 
                 {
@@ -270,7 +287,8 @@ void loop() {
         else if (commandID == CMD_ARM_IK_TTG) {
             if (canData.size() == 1) {
                 #ifdef DEBUG
-                    COMMS_UART.println("Got TTG Time,");
+                    Serial.println("|------------------------------------------------------|");
+                    Serial.println("| VicCan IK Time cmd recieved                          |");
                 #endif
                 findSpeedandTime(canData[0]);
             }
@@ -278,7 +296,19 @@ void loop() {
         else if (commandID == CMD_ARM_MANUAL) {
             if (canData.size() == 4) {
 
-                String command = "ctrl," + String(canData[1]) + ',' + String(canData[2]) + ',' + String(canData[3]);
+                #ifdef DEBUG
+                    Serial.println("|------------------------------------------------------|");
+                    Serial.println("| VicCan ctrl cmd recieved                             |");
+                #endif
+                
+
+                lastCtrlCmd = millis();
+
+                float speeds[3];
+                speeds[0] = canData[1] * 0.2;
+                speeds[1] = canData[2] * 0.2;
+                speeds[2] = canData[3] * 0.2;
+                String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
                 COMMS_UART.println(command);
 
             
@@ -324,6 +354,13 @@ void loop() {
 
         String prevCommand;
 
+        #ifdef DEBUG
+            Serial.println("|------------------------------------------------------|");
+            Serial.print("| Main MCU Command Recieved: ");
+            Serial.println(input);
+        #endif
+        
+
         //--------//
         //  Misc  //
         //--------//
@@ -361,15 +398,33 @@ void loop() {
             }
         }
 
+        else if (args[0] == "can_relay_tovic")
+        {
+            vicCAN.relayFromSerial(args);
+            Serial.println("Got Relay Command");
+        }
+
         //------------//
         //  Physical  //
         //------------//
 
         else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
         {
+            float speeds[3];
+            speeds[0] = args[2].toFloat() * 0.5;
+            speeds[1] = args[3].toFloat() * 0.5;
+            speeds[2] = args[4].toFloat() * 0.5;
+            String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
+
+            #ifdef DEBUG
+                    Serial.println("|------------------------------------------------------|");
+                    Serial.println("| Serial ctrl cmd recieved                             |");
+            #endif
+
             COMMS_UART.println(command);
-            AX0Speed = abs(args[1].toInt()) * 6;
-            if (args[1].toInt() < 0)
+
+            AX0Speed = abs(args[1].toFloat()) * 10;
+            if (args[1].toFloat() < 0)
             {
                 sd.setDirection(TURNRIGHT);
             }
@@ -378,19 +433,34 @@ void loop() {
                 sd.setDirection(TURNLEFT);
             }
             AX0En = true;
+            lastCtrlCmd = millis();
         }
 
         else if (args[0] == "IKA") // Set the target angle for IK
         {
+
+            #ifdef DEBUG
+                    Serial.println("|------------------------------------------------------|");
+                    Serial.println("| Serial IK Angle cmd recieved                         |");
+            #endif
+
             for (int i = 1; i <= MOTOR_AMOUNT; i++) 
             {
-                AxisSetPosition[i-1] = args[i].toInt();
+                AxisSetPosition[i-1] = args[i].toFloat();
             }
+            lastCtrlCmd = millis();
         }
 
         else if (args[0] == "IKT") // Set the speed for each controller based on the given time
-        {    
-            findSpeedandTime(args[1].toInt());
+        {   
+            
+            #ifdef DEBUG
+                    Serial.println("|------------------------------------------------------|");
+                    Serial.println("| Serial IK Time cmd recieved                          |");
+            #endif
+
+            findSpeedandTime(args[1].toFloat());
+            lastCtrlCmd = millis();
         }
     }
 
@@ -399,7 +469,12 @@ void loop() {
     {
         String input = COMMS_UART.readStringUntil('\n');
         input.trim();
-        Serial.println(input);
+
+        #ifdef DEBUG
+            Serial.println("|------------------------------------------------------|");
+            Serial.print("| From Motor MCU Recieved: ");
+            Serial.println(input);
+        #endif
     }
 }
 
@@ -423,12 +498,18 @@ void loop() {
 
 void safety_timeout()
 {
-  if(millis() - lastCtrlCmd > 2000)//if no control commands are received for 2 seconds
+  if(millis() - lastCtrlCmd > 2000)// if no control commands are received for 2 seconds
   {
-    // lastCtrlCmd = millis();//just update the var so this only runs every 2 seconds.
+    lastCtrlCmd = millis();// just update the var so this only runs every 2 seconds.
     AX0En = 0;
     COMMS_UART.println("ctrl,0,0,0");
-    Serial.println("No Control / Safety Timeout");
+
+    #ifdef DEBUG
+        Serial.println("|------------------------------------------------------|");
+        Serial.println("|********************SAFETY TIMEOUT********************|");
+    #else
+        Serial.println("No Control / Safety Timeout");
+    #endif
   }
 }
 
@@ -465,8 +546,11 @@ void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
     // convert to period
     dpsSpeed = 1/dpsSpeed;
     #ifdef DEBUG
-        Serial.printf("AX0 Period Set: %d", dpsSpeed);
+        Serial.println("|------------------------------------------------------|");
+        Serial.print("| AX0 Speed Set To: ");
+        Serial.println(dpsSpeed);
     #endif
+    
     if (dpsSpeed < 0)
     {
         sd.setDirection(TURNRIGHT);

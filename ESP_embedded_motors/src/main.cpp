@@ -40,9 +40,9 @@
 
 // #define DEBUG_STATUS
 
-#ifdef DEBUG
-#    define COMMS_UART Serial
-#endif
+// #ifdef DEBUG
+// #    define COMMS_UART Serial
+// #endif
 
 
 //---------------------//
@@ -74,7 +74,7 @@ bool safetyOn = true;
 //--------------//
 
 bool setAxisDeg(int axis, int degrees, int timeout, bool rel_abs);      // set what degree the axis is trying to go to
-void setAxisSpeeds(int A1Speed, int A2Speed, int A3Speed);                                 // set speed at which an axis moves
+void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed);                                 // set speed at which an axis moves
 void Brake(bool enable);
 void loopHeartbeats();
 void safety_timeout();
@@ -332,9 +332,9 @@ void loop() {
     if (COMMS_UART.available()) {
         String command = COMMS_UART.readStringUntil('\n');
         command.trim();
-#ifdef DEBUG
+//#ifdef DEBUG
         Serial.println(command);
-#endif
+//#endif
         static String prevCommand;
 
         std::vector<String> args = {};
@@ -371,8 +371,8 @@ void loop() {
             {
                 prevCommand = command;
 
-                setAxisSpeeds(args[1].toInt(), args[2].toInt(), args[3].toInt());
-                
+                setAxisSpeeds(args[1].toFloat(), args[2].toFloat(), args[3].toFloat());
+                COMMS_UART.println("Motors Recieved Ctrl Command");
             }
         }
         else if (args[0] == "safetyOff")
@@ -469,8 +469,9 @@ void safety_timeout()
     }
 }
 
-void setAxisSpeeds(int A1Speed, int A2Speed, int A3Speed)
+void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
 {
+    COMMS_UART.print("Setting Motor Speeds");
     motorList[0]->setDuty(A1Speed);
     motorList[1]->setDuty(A2Speed);
     motorList[2]->setDuty(A3Speed);
