@@ -411,14 +411,14 @@ void loop() {
         else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
         {
             float speeds[3];
-            speeds[0] = args[2].toFloat() * 0.5;
-            speeds[1] = args[3].toFloat() * 0.5;
-            speeds[2] = args[4].toFloat() * 0.5;
+            speeds[0] = args[2].toFloat() * 0.1;
+            speeds[1] = args[3].toFloat() * 0.1;
+            speeds[2] = args[4].toFloat() * 0.1;
             String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
 
             #ifdef DEBUG
                     Serial.println("|------------------------------------------------------|");
-                    Serial.println("| Serial ctrl cmd recieved                             |");
+                    Serial.println("| Main MCU Serial ctrl cmd recieved                    |");
             #endif
 
             COMMS_UART.println(command);

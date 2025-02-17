@@ -184,7 +184,7 @@ void loop() {
     safety_timeout();
 
     // Motor status debug printout
-#if defined(DEBUG)
+#if defined(DEBUG2)
     if (millis() - lastMotorStatus > 500) {
         lastMotorStatus = millis();
 
@@ -332,9 +332,9 @@ void loop() {
     if (COMMS_UART.available()) {
         String command = COMMS_UART.readStringUntil('\n');
         command.trim();
-//#ifdef DEBUG
-        Serial.println(command);
-//#endif
+
+        COMMS_UART.println(command);
+
         static String prevCommand;
 
         std::vector<String> args = {};
@@ -406,7 +406,7 @@ void loop() {
 #endif
             }
         }
-#if defined(DEBUG) && !defined(OLD_ASTRACAN_ENABLE)
+#if defined(DEBUG2) && !defined(OLD_ASTRACAN_ENABLE)
         else if (args[0] == "id") {
             CAN_identifySparkMax(2);
         }
@@ -471,7 +471,7 @@ void safety_timeout()
 
 void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
 {
-    COMMS_UART.print("Setting Motor Speeds");
+    COMMS_UART.println("Setting Motor Speeds");
     motorList[0]->setDuty(A1Speed);
     motorList[1]->setDuty(A2Speed);
     motorList[2]->setDuty(A3Speed);
