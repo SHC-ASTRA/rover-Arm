@@ -67,6 +67,7 @@ unsigned long lastHB = 0;
 int heartBeatNum = 1;
 unsigned long lastCtrlCmd = 0;
 unsigned long lastMotorStatus = 0;
+unsigned long lastMotorFeedback = 0;
 bool safetyOn = true;
 
 //--------------//
@@ -80,6 +81,7 @@ void loopHeartbeats();
 void safety_timeout();
 float getDriveSpeed();
 void updateMotorStatus();
+void motorFeedback();
 void Stop();
 
 
@@ -178,6 +180,12 @@ void loop() {
         {
             heartBeatNum = 1;
         }
+    }
+
+    if (millis() - lastMotorFeedback >= 2000) // Change to 1000?
+    {
+        lastMotorFeedback = millis();
+        motorFeedback();
     }
 
     // Safety timeout
@@ -364,7 +372,7 @@ void loop() {
         //----------//
         //  Motors  //
         //----------//
-        else if (args[0] == "ctrl")      
+        else if (args[0] == "ctrl")
         {   
             lastCtrlCmd = millis();
             if (command != prevCommand)
@@ -477,12 +485,37 @@ void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
     motorList[2]->setDuty(A3Speed);
 }
 
+void motorFeedback()
+{
+    for (int i = 1; i < 4; i++)
+    { 
+        String motor_feedback = 39+","+i+',';
+        motor_feedback += motorList[i]->status1.busVoltage*10+',';
+        motor_feedback += motorList[i]->status1.outputCurrent*10+',';
+        motor_feedback += motorList[i]->status1.motorTemperature*10;
+        COMMS_UART.println(motor_feedback);
+    }
+}
+
 // Bypasses the acceleration to make the rover stop
 // Should only be used for autonomy, but it could probably be used elsewhere
 void Stop()
 {
     for (int i = 0; i < MOTOR_AMOUNT; i++) {
         motorList[i]->stop();
+    }
+}
+
+void updateMotorStatus()
+{
+    for (int i = 1; i < 4; i++) {
+        String dataOut = "";
+        dataOut += String(39)+",";
+        dataOut += String(i)+","; 
+        dataOut += String(motorList[i]->status1.motorTemperature*10)+",";
+        dataOut += String(static_cast<int>(motorList[i]->status1.busVoltage*10))+",";
+        dataOut += String(static_cast<int>(motorList[i]->status1.outputCurrent*10));
+        COMMS_UART.println(dataOut);
     }
 }
 
