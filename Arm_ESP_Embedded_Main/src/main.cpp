@@ -279,7 +279,7 @@ void loop() {
                     Serial.println("|------------------------------------------------------|");
                     Serial.println("| VicCan IK Angle cmd recieved                         |");
                 #endif
-                for (int i = 0; i <= MOTOR_AMOUNT; i++) 
+                for (int i = 0; i < MOTOR_AMOUNT; i++) 
                 {
                     AxisSetPosition[i] = canData[i];
                 }

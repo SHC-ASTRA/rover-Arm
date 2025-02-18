@@ -33,6 +33,10 @@
 #    include "AstraREVCAN.h"
 #endif
 
+// #ifdef DEBUG
+// #    define COMMS_UART Serial
+// #endif
+
 
 //------------//
 //  Settings  //
@@ -69,6 +73,8 @@ unsigned long lastCtrlCmd = 0;
 unsigned long lastMotorStatus = 0;
 unsigned long lastMotorFeedback = 0;
 bool safetyOn = true;
+
+uint32_t lastAccel = 0;
 
 //--------------//
 //  Prototypes  //
@@ -169,6 +175,14 @@ void loop() {
     }
 
     // Accelerate motors; update the speed for all motors
+    if (millis() - lastAccel >= 100) 
+    {
+        lastAccel = millis();
+        for (int i = 0; i < MOTOR_AMOUNT; i++) 
+        {
+            motorList[i]->accelerate();
+        }
+    }
 
     // Heartbeat for REV motors
     if (millis() - lastHB >= 3)
@@ -348,6 +362,8 @@ void loop() {
         std::vector<String> args = {};
         parseInput(command, args);
 
+        args[0].toLowerCase();
+
         //--------//
         //  Misc  //
         //--------//
@@ -383,17 +399,20 @@ void loop() {
                 COMMS_UART.println("Motors Recieved Ctrl Command");
             }
         }
-        else if (args[0] == "safetyOff")
+        else if (args[0] == "safetyoff")
         {
             safetyOn = false;
         }
-        else if (args[0] == "Stop")
+        else if (args[0] == "stop")
         {
-            Stop();
-        }
-        else if (args[0] == "stop") // Stop a specific joint
-        {
-            motorList[args[1].toInt()-1]->stop();
+            if (checkArgs(args, 1) && args[1].toInt() > 0 && args[1].toInt() <= MOTOR_AMOUNT)
+            {
+                motorList[args[1].toInt()-1]->stop();  // Stop a specific joint
+            }
+            else
+            {
+                Stop();
+            }
         }
 
         else if (args[0] == "brake") 
@@ -487,7 +506,7 @@ void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
 
 void motorFeedback()
 {
-    for (int i = 1; i < 4; i++)
+    for (int i = 1; i < MOTOR_AMOUNT; i++)
     { 
         String motor_feedback = 39+","+i+',';
         motor_feedback += motorList[i]->status1.busVoltage*10+',';
