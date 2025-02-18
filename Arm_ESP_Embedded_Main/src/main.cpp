@@ -133,7 +133,8 @@ void setup()
     else
         Serial.println("CAN bus failed!");
     
-    
+    vicCAN.relayOn();
+
     sd.setChipSelectPin(AX0_CS);
 
     delay(1);
@@ -151,7 +152,7 @@ void setup()
     sd.setCurrentMilliamps36v4(1000);
 
     // Set the number of microsteps that correspond to one full step.
-    sd.setStepMode(HPSDStepMode::MicroStep32);
+    sd.setStepMode(HPSDStepMode::MicroStep1);
 
     // Enable the motor outputs.
     sd.enableDriver();
@@ -186,7 +187,7 @@ void loop() {
     }
 #endif
 
-    if(((millis()-lastMotorStep)>=AX0Speed) && AX0En)
+    if(((millis()-lastMotorStep)>=4) && AX0En)
     {
         sd.step();
         lastMotorStep = millis();
@@ -302,26 +303,30 @@ void loop() {
                 #endif
                 
 
-                lastCtrlCmd = millis();
-
                 float speeds[3];
-                speeds[0] = canData[1] * 0.2;
-                speeds[1] = canData[2] * 0.2;
-                speeds[2] = canData[3] * 0.2;
+                speeds[0] = canData[1] * 0.50;
+                speeds[1] = canData[2] * 0.50;
+                speeds[2] = canData[3] * 0.50;
                 String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
+
                 COMMS_UART.println(command);
 
-            
-            AX0Speed = abs(canData[0]) * 6;
-            if (canData[0] < 0)
-            {
-                sd.setDirection(TURNRIGHT);
-            }
-            else
-            {
-                sd.setDirection(TURNLEFT);
-            }
-            AX0En = true;
+                // AX0Speed = abs(args[1].toFloat()) * 10;
+                if (canData[0] < 0)
+                {
+                    sd.setDirection(TURNRIGHT);
+                    AX0En = true;
+                }
+                else if (canData[0] > 0)
+                {
+                    sd.setDirection(TURNLEFT);
+                    AX0En = true;
+                }
+                else
+                {
+                    AX0En = false;
+                }
+                lastCtrlCmd = millis();
             }
         }
     }
@@ -423,7 +428,7 @@ void loop() {
 
             COMMS_UART.println(command);
 
-            AX0Speed = abs(args[1].toFloat()) * 10;
+            // AX0Speed = abs(args[1].toFloat()) * 10;
             if (args[1].toFloat() < 0)
             {
                 sd.setDirection(TURNRIGHT);
