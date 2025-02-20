@@ -37,7 +37,7 @@
 
 //Sensor declarations
 
-AstraCAN Can0;
+TwaiCAN Can0;
 
 
 //----------//
