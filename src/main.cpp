@@ -6,6 +6,11 @@
  *
  */
 
+// TODO:
+//  -  LSS IDs
+//  -  Wrist gear ratio
+//  -  The only thing that works is LSS :(((
+
 //------------//
 //  Includes  //
 //------------//
@@ -25,12 +30,17 @@
 // Comment out to disable LED blinking
 #define BLINK
 
+#define LSS_GEAR_RATIO 3
+
+#define LSS_SERIAL	(Serial1)
+#define LSS_BAUD	(LSS_DefaultBaud)
+
 
 //---------------------//
 //  Component classes  //
 //---------------------//
 
-LSS topLSS = LSS(LSS_TOP_ID);
+LSS topLSS = LSS(254);  // Using broadcast ID until IDs are known
 LSS bottomLSS = LSS(LSS_BOTTOM_ID);
 
 
@@ -45,10 +55,17 @@ unsigned long lastCtrlCmd = millis();
 
 uint32_t lastFault = 0;
 
+uint32_t wristGoalTime = 0;  // ms
+
+int wristYaw = 0;  // Current yaw angle of wrist
+int timeToGoal = 0;  // ms
+
 
 //--------------//
 //  Prototypes  //
 //--------------//
+
+void stopEverything();
 
 
 //------------------------------------------------------------------------------------------------//
@@ -123,8 +140,8 @@ void setup() {
     bottomLSS.setMaxSpeed(100);
 
     // Complete LSS configuration
-    topLSS.reset();
-    bottomLSS.reset();
+    // topLSS.reset();
+    // bottomLSS.reset();
 
     // Wait for LSS reboot
     delay(2000);
@@ -162,15 +179,7 @@ void loop() {
     // Motor control safety timeout
     if (millis() - lastCtrlCmd > 2000) {
         lastCtrlCmd = millis();
-        // Stop LSS
-        topLSS.wheelRPM(0);
-        bottomLSS.wheelRPM(0);
-        // Stop EF motor
-        digitalWrite(MOTOR_IN1, LOW);
-        digitalWrite(MOTOR_IN2, LOW);
-        // Stop lin ac
-        digitalWrite(LINAC_RIN, LOW);
-        digitalWrite(LINAC_FIN, LOW);
+        stopEverything();
 #ifdef DEBUG
         Serial.println("Safety timeout");
 #endif
@@ -184,6 +193,11 @@ void loop() {
         digitalWrite(MOTOR_IN1, LOW);
         digitalWrite(MOTOR_IN2, LOW);
     }
+
+    // if (millis() >= wristGoalTime) {
+        
+        
+    // }
 
 
     //-------------//
@@ -223,6 +237,22 @@ void loop() {
 
         // Misc Physical Control
 
+        else if (commandID == CMD_DCMOTOR_CTRL) {
+            if (canData.size() == 1) {
+                if (canData[0] == 1) {
+                    digitalWrite(MOTOR_IN1, HIGH);
+                    digitalWrite(MOTOR_IN2, LOW);
+                } else if (canData[0] == 0) {
+                    digitalWrite(MOTOR_IN1, HIGH);
+                    digitalWrite(MOTOR_IN2, HIGH);
+                } else if (canData[0] == -1) {
+                    digitalWrite(MOTOR_IN1, LOW);
+                    digitalWrite(MOTOR_IN2, HIGH);
+                }
+                // TODO: figure out PWM control
+            }
+        }
+
         else if (commandID == CMD_LASER_CTRL) {
             if (canData.size() == 1) {
                 if (canData[0] == 0) {
@@ -237,6 +267,18 @@ void loop() {
 #endif
                     digitalWrite(LASER_NMOS, HIGH);
                 }
+            }
+        }
+
+        else if (commandID == CMD_ARM_IK_TTG) {
+            if (canData.size() == 1) {
+                timeToGoal = canData[0];
+            }
+        }
+
+        else if (commandID == CMD_DIGIT_IK_CTRL) {
+            if (canData.size() == 1) {
+                const int yawAngleDelta = wristYaw - canData[0];
             }
         }
     }
@@ -332,8 +374,12 @@ void loop() {
                 } else if (args[2] == "manual") {
                     // For now, just take raw speeds for the two servos.
                     // We can figure out the math for yaw/rotation at the same time later...
-                    topLSS.wheelRPM(args[3].toInt());
-                    bottomLSS.wheelRPM(args[4].toInt());
+                    topLSS.moveRelative(args[3].toInt());
+                    bottomLSS.moveRelative(args[4].toInt());
+                    Serial.print('j');
+                    Serial.print(args[3].toInt());
+                    Serial.print(' ');
+                    Serial.println(args[4].toInt());
                 } else if (args[2] == "ik") {
                     Serial.println("IK not implemented yet");
                     // Will need math to figure out what yaw angle the wrist is currently at and how
@@ -361,6 +407,10 @@ void loop() {
             }
 
         }
+
+        else if (command == "stop") {
+            stopEverything();
+        }
     }
 }
 
@@ -381,3 +431,17 @@ void loop() {
 //    //            //          //      //////////    //
 //                                                    //
 //----------------------------------------------------//
+
+void stopEverything() {
+    // Stop LSS
+    topLSS.wheelRPM(0);
+    bottomLSS.wheelRPM(0);
+    topLSS.limp();
+    bottomLSS.limp();
+    // Stop EF motor
+    digitalWrite(MOTOR_IN1, LOW);
+    digitalWrite(MOTOR_IN2, LOW);
+    // Stop lin ac
+    digitalWrite(LINAC_RIN, LOW);
+    digitalWrite(LINAC_FIN, LOW);
+}
