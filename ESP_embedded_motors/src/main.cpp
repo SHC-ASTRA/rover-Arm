@@ -86,7 +86,6 @@ void Brake(bool enable);
 void loopHeartbeats();
 void safety_timeout();
 float getDriveSpeed();
-void updateMotorStatus();
 void motorFeedback();
 void Stop();
 
@@ -506,7 +505,7 @@ void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
 
 void motorFeedback()
 {
-    for (int i = 1; i < MOTOR_AMOUNT; i++)
+    for (int i = 0; i < MOTOR_AMOUNT; i++)
     { 
         String motor_feedback = 39+","+i+',';
         motor_feedback += motorList[i]->status1.busVoltage*10+',';
@@ -522,19 +521,6 @@ void Stop()
 {
     for (int i = 0; i < MOTOR_AMOUNT; i++) {
         motorList[i]->stop();
-    }
-}
-
-void updateMotorStatus()
-{
-    for (int i = 1; i < 4; i++) {
-        String dataOut = "";
-        dataOut += String(39)+",";
-        dataOut += String(i)+","; 
-        dataOut += String(motorList[i]->status1.motorTemperature*10)+",";
-        dataOut += String(static_cast<int>(motorList[i]->status1.busVoltage*10))+",";
-        dataOut += String(static_cast<int>(motorList[i]->status1.outputCurrent*10));
-        COMMS_UART.println(dataOut);
     }
 }
 
