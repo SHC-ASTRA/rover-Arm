@@ -16,6 +16,7 @@
 
 #include <SPI.h>
 #include <HighPowerStepperDriver.h>
+#include "AS5047P.h"
 
 // Our own resources
 
@@ -50,10 +51,27 @@ bool ledState = false;
 const uint16_t StepPeriodUs = 2000;
 HighPowerStepperDriver sd;
 
+#define SPI_BUS_SPEED 1000000 // 1MHz, this should get moved to project/ARM.h under rover-Embedded-Lib
+
+#define ax0_encoder_offset 140
+#define ax1_encoder_offset 55
+#define ax2_encoder_offset 352
+#define ax3_encoder_offset 55
+
+
+AS5047P ax0_encoder(ENCODER_AXIS0_PIN, SPI_BUS_SPEED); 
+AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED); 
+AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED); 
+AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED); 
+auto errorInfo = AS5047P_Types::ERROR_t();
+
+
 unsigned long clockTimer = 0;
 unsigned long lastFeedback = 0;
 unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
+unsigned long lastEncoderRead = 0;
+unsigned long lastEncoderOutput = 0;
 double AX0Speed = 0;
 bool AX0En = false;
 
@@ -69,6 +87,9 @@ int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
 //--------------//
 
 void outputEncoders();
+void readEncoders();
+int adjustEncoderValue(int encoderValue, int offset);
+
 void safety_timeout();
 void findSpeedandTime(int time);
 void convertToDutyCycle(double& dpsSpeed, float gearRatio);
@@ -128,17 +149,25 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     COMMS_UART.begin(COMMS_UART_BAUD);
 
-    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, 24, 25))
+    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, 14, 13))
         Serial.println("CAN bus started!");
     else
         Serial.println("CAN bus failed!");
     
     vicCAN.relayOn();
 
+
+    SPI.begin();
+
+
+    // ------------- //
+    // Stepper Motor //
+    // ------------- //
+
     sd.setChipSelectPin(AX0_CS);
 
     delay(1);
-
+    
     sd.resetSettings();
     sd.clearStatus();
 
@@ -156,6 +185,41 @@ void setup()
 
     // Enable the motor outputs.
     sd.enableDriver();
+
+    // ------------- //
+    // Encoder Setup //
+    // ------------- //
+
+    // initialize the AS5047P sensor and hold if sensor can't be initialized.
+    while(!ax0_encoder.initSPI())
+    {
+        Serial.println(F("Axis0 Encoder: Failed"));
+        delay(5000);
+    }
+    Serial.println("Axis0 Encoder: Success");
+
+
+    while (!ax1_encoder.initSPI()) {
+        Serial.println(F("Axis1 Encoder: Failed"));
+        delay(5000);
+    }
+    Serial.println("Axis1 Encoder: Success");
+
+    while (!ax1_encoder.initSPI())
+    {
+        Serial.println(F("Axis2 Encoder: Failed"));
+        delay(5000);
+    }
+    Serial.println("Axis2 Encoder: Success");
+
+    while (!ax2_encoder.initSPI())
+    {
+        Serial.println(F("Axis3 Encoder: Failed"));
+        delay(5000);
+    }
+    Serial.println("Axis3 Encoder: Success");
+
+
 }
 
 
@@ -201,6 +265,11 @@ void loop() {
 
     // Safety timeout if no ctrl command for 2 seconds
     safety_timeout();
+
+
+    readEncoders();
+    outputEncoders();
+    
 
 
     //------------------//
@@ -500,6 +569,48 @@ void loop() {
 //    //            //          //      //////////    //
 //                                                    //
 //----------------------------------------------------//
+
+
+
+int adjustEncoderValue(int encoderValue, int offset) {
+    int adjustedValue = encoderValue - offset;
+    if (adjustedValue < 0) {
+        adjustedValue += 360; // Wrap around at 360 degrees
+    }
+    return adjustedValue % 360; // Ensure the value is within 0-359 range
+}
+
+void outputEncoders()
+{
+    if((millis()-lastEncoderOutput>=500))
+    {
+        lastEncoderOutput = millis();
+        char buffer[50];
+        sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
+        Serial.println(buffer);
+    }
+}
+
+
+void readEncoders()
+{
+    if((millis()-lastEncoderRead)>=250)
+    {
+        lastEncoderRead = millis();
+        AxisPosition[0] = adjustEncoderValue(round(ax0_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax0_encoder_offset);
+        delay(1);
+        AxisPosition[1] = adjustEncoderValue(round(ax1_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax1_encoder_offset);
+        delay(1);
+        AxisPosition[2] = adjustEncoderValue(round(ax2_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax2_encoder_offset);
+        delay(1);
+        AxisPosition[3] = adjustEncoderValue(round(ax3_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax3_encoder_offset);
+    }
+}
+
+
+
+
+
 
 void safety_timeout()
 {
