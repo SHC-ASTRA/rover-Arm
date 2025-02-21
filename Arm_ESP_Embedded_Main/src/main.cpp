@@ -25,7 +25,8 @@
 
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
-
+#include "AstraSensors.h"
+#include "AS5047P.h"
 
 //------------//
 //  Settings  //
@@ -37,8 +38,13 @@
 
 //Sensor declarations
 
-AstraCAN Can0;
-
+TwaiCAN Can0;
+//AS5047P AXIS0(33); 
+AS5047P AXIS1(26); 
+AS5047P AXIS2(25); 
+AS5047P AXIS3(5); 
+//AS5047P AXISEncoders[] = {AXIS0, AXIS1, AXIS2, AXIS3};
+float AXISEncoders[] = {0.0,0.0,0.0,0.0};
 
 //----------//
 //  Timing  //
@@ -54,6 +60,7 @@ unsigned long clockTimer = 0;
 unsigned long lastFeedback = 0;
 unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
+unsigned long lastEncoderRead = 0;
 double AX0Speed = 0;
 bool AX0En = false;
 
@@ -62,7 +69,6 @@ unsigned int goalTime;
 bool AxisComplete    [] = {true,true,true,true};     // AxisXComplete    where x = 1..3
 int  AxisSetPosition [] = {0,0,0,0};              // AxisXSetPosition ^^^
 int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
-
 
 //--------------//
 //  Prototypes  //
@@ -74,6 +80,7 @@ void findSpeedandTime(int time);
 void convertToDutyCycle(double& dpsSpeed, float gearRatio);
 void convertToDutyCycleA0(double& dpsSpeed, float gearRatio);
 void updateMotorState();
+
 
 // int findRotationDirection(float current_direction, float target_direction);
 // bool autoTurn(int time,float target_direction);
@@ -200,7 +207,7 @@ void loop() {
     }
 
     // Safety timeout if no ctrl command for 2 seconds
-    safety_timeout();
+    //safety_timeout();
 
 
     //------------------//
@@ -393,13 +400,14 @@ void loop() {
         //-----------//
         // TODO: Need to figure out how to output encoder values
         // TODO Need to add voltage, current and temp of the motors
+        
         else if (args[0] == "data") // Send data out
         {
 
-            if(args[1] == "sendEnc") // data
+            if(args[1] == "sendEnc" && lastEncoderRead >= 50) // data
             {
-                // outputEncoders();
-
+                lastEncoderRead = millis() - lastEncoderRead;
+                outputEncoders();
             }
         }
 
@@ -542,6 +550,20 @@ void findSpeedandTime(int time)               // Based on how long it will take 
 void convertToDutyCycle(double& dpsSpeed, float gearRatio)
 {
     dpsSpeed = (dpsSpeed*gearRatio)/11000; // Retarded solution, should be changed
+}
+
+void outputEncoders()
+{
+    //String encoderOutput = "";
+    //for (int i = 0; i < MOTOR_AMOUNT; i++)
+    //{
+    //   encoderOutput += AXISEncoders[i].readAngleDegree() + ',';
+    //}
+    //Serial.println(encoderOutput)
+    //AXISEncoders[0] = AXIS0.readAngleDegree();
+    AXISEncoders[1] = AXIS1.readAngleDegree();
+    AXISEncoders[2] = AXIS2.readAngleDegree();
+    AXISEncoders[3] = AXIS3.readAngleDegree();
 }
 
 void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
