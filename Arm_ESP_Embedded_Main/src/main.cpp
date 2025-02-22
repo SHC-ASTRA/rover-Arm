@@ -181,7 +181,7 @@ void setup()
     sd.setCurrentMilliamps36v4(1000);
 
     // Set the number of microsteps that correspond to one full step.
-    sd.setStepMode(HPSDStepMode::MicroStep1);
+    sd.setStepMode(HPSDStepMode::MicroStep2);
 
     // Enable the motor outputs.
     sd.enableDriver();
@@ -251,7 +251,7 @@ void loop() {
     }
 #endif
 
-    if(((millis()-lastMotorStep)>=4) && AX0En)
+    if(((millis()-lastMotorStep)>=1) && AX0En)
     {
         sd.step();
         lastMotorStep = millis();
