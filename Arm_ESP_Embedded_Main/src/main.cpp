@@ -263,11 +263,16 @@ void loop() {
         lastFeedback = millis();
     }
 
+    if((millis()-lastEncoderRead)>=250)
+    {
+        readEncoders();
+        lastEncoderRead = millis();
+    }
+
     // Safety timeout if no ctrl command for 2 seconds
     safety_timeout();
 
 
-    readEncoders();
     outputEncoders();
     
 
@@ -594,17 +599,13 @@ void outputEncoders()
 
 void readEncoders()
 {
-    if((millis()-lastEncoderRead)>=250)
-    {
-        lastEncoderRead = millis();
-        AxisPosition[0] = adjustEncoderValue(round(ax0_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax0_encoder_offset);
-        delay(1);
-        AxisPosition[1] = adjustEncoderValue(round(ax1_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax1_encoder_offset);
-        delay(1);
-        AxisPosition[2] = adjustEncoderValue(round(ax2_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax2_encoder_offset);
-        delay(1);
-        AxisPosition[3] = adjustEncoderValue(round(ax3_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax3_encoder_offset);
-    }
+    AxisPosition[0] = adjustEncoderValue(round(ax0_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax0_encoder_offset);
+    // delay(1);
+    AxisPosition[1] = adjustEncoderValue(round(ax1_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax1_encoder_offset);
+    // delay(1);
+    AxisPosition[2] = adjustEncoderValue(round(ax2_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax2_encoder_offset);
+    // delay(1);
+    AxisPosition[3] = adjustEncoderValue(round(ax3_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax3_encoder_offset);
 }
 
 
@@ -635,6 +636,7 @@ void findSpeedandTime(int time)               // Based on how long it will take 
 {
     double setSpeed[MOTOR_AMOUNT];
     // Figure out the degrees per second
+    readEncoders();
     for (int i = 0; i < MOTOR_AMOUNT; i++)
     {
         setSpeed[i] = abs(AxisPosition[i] - AxisSetPosition[i])/time;
