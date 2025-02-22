@@ -109,8 +109,8 @@ void setup() {
     pinMode(MOTOR_IN1, OUTPUT);
     pinMode(MOTOR_IN2, OUTPUT);
     pinMode(MOTOR_FAULT, INPUT);  // External pull-up resistor
-    digitalWrite(MOTOR_IN1, LOW);
-    digitalWrite(MOTOR_IN2, LOW);
+    analogWrite(MOTOR_IN1, 0);
+    analogWrite(MOTOR_IN2, 0);
 
 
     //------------------//
@@ -191,8 +191,8 @@ void loop() {
         lastFault = millis();  // Always check unless there has been a fault <1 second ago
         Serial.println("EF Motor fault detected: over-current, over-temperature, or under-voltage.");
         // Stop EF motor
-        digitalWrite(MOTOR_IN1, LOW);
-        digitalWrite(MOTOR_IN2, LOW);
+        analogWrite(MOTOR_IN1, 0);
+        analogWrite(MOTOR_IN2, 0);
     }
 
     // if (millis() - lastWristYawIter > 175 && (isWristYawIK || wristYawDir != 0)) {
@@ -478,8 +478,8 @@ void stopEverything() {
     // topLSS.limp();
     // bottomLSS.limp();
     // Stop EF motor
-    digitalWrite(MOTOR_IN1, LOW);
-    digitalWrite(MOTOR_IN2, LOW);
+    analogWrite(MOTOR_IN1, 0);
+    analogWrite(MOTOR_IN2, 0);
     // Stop lin ac
     digitalWrite(LINAC_RIN, LOW);
     digitalWrite(LINAC_FIN, LOW);
@@ -489,13 +489,13 @@ void stopEverything() {
 
 void efCtrl(int dir) {
     if (dir == 1) {  // Close
-        analogWrite(MOTOR_IN1, 150);
-        digitalWrite(MOTOR_IN2, LOW);
-    } else if (dir == 0) {  // Stop
-        digitalWrite(MOTOR_IN1, LOW);
-        digitalWrite(MOTOR_IN2, LOW);
+        analogWrite(MOTOR_IN1, 225);
+        analogWrite(MOTOR_IN2, 0);
+    } else if (dir == 0) {  // Stop 
+        analogWrite(MOTOR_IN1, 50);
+        analogWrite(MOTOR_IN2, 50);
     } else if (dir == -1) {  // Open
-        digitalWrite(MOTOR_IN1, LOW);
-        analogWrite(MOTOR_IN2, 150);
+        analogWrite(MOTOR_IN1, 0);
+        analogWrite(MOTOR_IN2, 225);
     }
 }
