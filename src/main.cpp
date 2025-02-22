@@ -6,11 +6,6 @@
  *
  */
 
-// TODO:
-//  -  LSS IDs
-//  -  Wrist gear ratio
-//  -  The only thing that works is LSS :(((
-
 //------------//
 //  Includes  //
 //------------//
@@ -40,8 +35,8 @@
 //  Component classes  //
 //---------------------//
 
-LSS topLSS = LSS(254);  // Using broadcast ID until IDs are known
-LSS bottomLSS = LSS(LSS_BOTTOM_ID);
+LSS topLSS = LSS(1);
+LSS bottomLSS = LSS(2);
 
 
 //----------//
@@ -55,9 +50,14 @@ unsigned long lastCtrlCmd = millis();
 
 uint32_t lastFault = 0;
 
-uint32_t wristGoalTime = 0;  // ms
+uint32_t lastWristYawIter = 0;  // ms
 
-int wristYaw = 0;  // Current yaw angle of wrist
+int wristYaw = 0;  // degrees; Current yaw angle of wrist
+int wristYawDir = 0;  // Direction of wrist yaw: 1 = Close, 0 = Stop, -1 = Open
+int wristRollDir = 0;
+
+bool isWristYawIK = false;  // Is IK controlling yaw now?
+int wristYawIKGoal = 0;  // degrees; Goal for wristYaw from IK
 int timeToGoal = 0;  // ms
 
 
@@ -66,6 +66,7 @@ int timeToGoal = 0;  // ms
 //--------------//
 
 void stopEverything();
+void efCtrl(int dir);
 
 
 //------------------------------------------------------------------------------------------------//
@@ -135,7 +136,7 @@ void setup() {
 
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
 
-    // LSS Settings from last year's Arm
+    // 1 degree / 175 ms
     topLSS.setMaxSpeed(100);
     bottomLSS.setMaxSpeed(100);
 
@@ -194,9 +195,31 @@ void loop() {
         digitalWrite(MOTOR_IN2, LOW);
     }
 
-    // if (millis() >= wristGoalTime) {
-        
-        
+    // if (millis() - lastWristYawIter > 175 && (isWristYawIK || wristYawDir != 0)) {
+    //     lastWristYawIter = millis();
+
+    //     if (isWristYawIK && wristYaw != wristYawIKGoal) {  // IK Yaw Control
+    //         // TODO: decimal?
+    //         if (wristYaw < wristYawIKGoal) {
+    //             wristYaw += 1;
+    //             topLSS.moveRelative(-20);
+    //             bottomLSS.moveRelative(20);
+    //         } else if (wristYaw > wristYawIKGoal) {
+    //             wristYaw -= 1;
+    //             topLSS.moveRelative(20);
+    //             bottomLSS.moveRelative(-20);
+    //         }
+    //     } else if (!isWristYawIK && wristYawDir != 0) {  // Manual Yaw Control
+    //         if (wristYawDir == 1) {
+    //             wristYaw += 1;
+    //             topLSS.moveRelative(-20);
+    //             bottomLSS.moveRelative(20);
+    //         } else if (wristYawDir == -1) {
+    //             wristYaw -= 1;
+    //             topLSS.moveRelative(20);
+    //             bottomLSS.moveRelative(-20);
+    //         }
+    //     }
     // }
 
 
@@ -208,6 +231,8 @@ void loop() {
         static std::vector<double> canData;
         vicCAN.parseData(canData);
 
+        Serial.print(millis());
+        Serial.print(": ");
         Serial.print("VicCAN: ");
         Serial.print(commandID);
         Serial.print("; ");
@@ -239,32 +264,18 @@ void loop() {
 
         else if (commandID == CMD_DCMOTOR_CTRL) {
             if (canData.size() == 1) {
-                if (canData[0] == 1) {
-                    digitalWrite(MOTOR_IN1, HIGH);
-                    digitalWrite(MOTOR_IN2, LOW);
-                } else if (canData[0] == 0) {
-                    digitalWrite(MOTOR_IN1, HIGH);
-                    digitalWrite(MOTOR_IN2, HIGH);
-                } else if (canData[0] == -1) {
-                    digitalWrite(MOTOR_IN1, LOW);
-                    digitalWrite(MOTOR_IN2, HIGH);
-                }
-                // TODO: figure out PWM control
+                lastCtrlCmd = millis();
+                efCtrl(canData[0]);
             }
         }
 
         else if (commandID == CMD_LASER_CTRL) {
             if (canData.size() == 1) {
+                lastCtrlCmd = millis();
                 if (canData[0] == 0) {
-#ifdef DEBUG
-                    Serial.println("Laser off");
-#endif
                     digitalWrite(LASER_NMOS, LOW);
                 }
                 else if (canData[0] == 1) {
-#ifdef DEBUG
-                    Serial.println("Laser on");
-#endif
                     digitalWrite(LASER_NMOS, HIGH);
                 }
             }
@@ -276,9 +287,46 @@ void loop() {
             }
         }
 
-        else if (commandID == CMD_DIGIT_IK_CTRL) {
-            if (canData.size() == 1) {
-                const int yawAngleDelta = wristYaw - canData[0];
+        else if (commandID == 35) {  // Wrist rotate
+            if (canData.size() == 1 && (!isWristYawIK && wristYawDir == 0)) {
+                lastCtrlCmd = millis();
+
+                wristRollDir = canData[0];
+
+                if (canData[0] == 1) {
+                    topLSS.wheel(-20 * LSS_GEAR_RATIO);
+                    bottomLSS.wheel(-20 * LSS_GEAR_RATIO);
+                } else if (canData[0] == 0 && wristYawDir == 0) {
+                    topLSS.wheel(0);
+                    bottomLSS.wheel(0);
+                } else if (canData[0] == -1) {
+                    topLSS.wheel(20 * LSS_GEAR_RATIO);
+                    bottomLSS.wheel(20 * LSS_GEAR_RATIO);
+                }
+            }
+        }
+
+        else if (commandID == 36) {  // Wrist yaw
+            if (canData.size() == 2) {
+                lastCtrlCmd = millis();
+                // isWristYawIK = static_cast<bool>(canData[0]);
+                // wristYawDir = canData[1];
+                // wristYawIKGoal = canData[1];
+
+                if (canData[0] == 0) {  // Manual control
+                    wristYawDir = canData[1];
+
+                    if (canData[1] == 1) {
+                        topLSS.wheel(-20);
+                        bottomLSS.wheel(20);
+                    } else if (canData[1] == 0 && wristRollDir == 0) {
+                        topLSS.wheel(0);
+                        bottomLSS.wheel(0);
+                    } else if (canData[1] == -1) {
+                        topLSS.wheel(20);
+                        bottomLSS.wheel(-20);
+                    }
+                }
             }
         }
     }
@@ -387,16 +435,7 @@ void loop() {
                 }
             }
             else if (args[1] == "ef") {
-                if (args[2] == "1") {
-                    digitalWrite(MOTOR_IN1, HIGH);
-                    digitalWrite(MOTOR_IN2, LOW);
-                } else if (args[2] == "0") {
-                    digitalWrite(MOTOR_IN1, HIGH);
-                    digitalWrite(MOTOR_IN2, HIGH);
-                } else if (args[2] == "-1") {
-                    digitalWrite(MOTOR_IN1, LOW);
-                    digitalWrite(MOTOR_IN2, HIGH);
-                }
+                efCtrl(args[2].toInt());
             }
 
         } else if (command == "laser") {
@@ -434,14 +473,29 @@ void loop() {
 
 void stopEverything() {
     // Stop LSS
-    topLSS.wheelRPM(0);
-    bottomLSS.wheelRPM(0);
-    topLSS.limp();
-    bottomLSS.limp();
+    topLSS.wheel(0);
+    bottomLSS.wheel(0);
+    // topLSS.limp();
+    // bottomLSS.limp();
     // Stop EF motor
     digitalWrite(MOTOR_IN1, LOW);
     digitalWrite(MOTOR_IN2, LOW);
     // Stop lin ac
     digitalWrite(LINAC_RIN, LOW);
     digitalWrite(LINAC_FIN, LOW);
+    // Turn off laser
+    digitalWrite(LASER_NMOS, LOW);
+}
+
+void efCtrl(int dir) {
+    if (dir == 1) {  // Close
+        analogWrite(MOTOR_IN1, 150);
+        digitalWrite(MOTOR_IN2, LOW);
+    } else if (dir == 0) {  // Stop
+        digitalWrite(MOTOR_IN1, LOW);
+        digitalWrite(MOTOR_IN2, LOW);
+    } else if (dir == -1) {  // Open
+        digitalWrite(MOTOR_IN1, LOW);
+        analogWrite(MOTOR_IN2, 150);
+    }
 }
