@@ -35,6 +35,8 @@
 // Comment out to disable LED blinking
 #define BLINK
 
+// #define ARM_DEBUG
+
 
 //Sensor declarations
 
@@ -349,7 +351,7 @@ void loop() {
         }
         else if (commandID == CMD_ARM_IK_CTRL) {
             if (canData.size() == 4) {
-                #ifdef DEBUG
+                #ifdef ARM_DEBUG
                     Serial.println("|------------------------------------------------------|");
                     Serial.println("| VicCan IK Angle cmd recieved                         |");
                 #endif
@@ -361,7 +363,7 @@ void loop() {
         }
         else if (commandID == CMD_ARM_IK_TTG) {
             if (canData.size() == 1) {
-                #ifdef DEBUG
+                #ifdef ARM_DEBUG
                     Serial.println("|------------------------------------------------------|");
                     Serial.println("| VicCan IK Time cmd recieved                          |");
                 #endif
@@ -371,7 +373,7 @@ void loop() {
         else if (commandID == CMD_ARM_MANUAL) {
             if (canData.size() == 4) {
 
-                #ifdef DEBUG
+                #ifdef ARM_DEBUG
                     Serial.println("|------------------------------------------------------|");
                     Serial.println("| VicCan ctrl cmd recieved                             |");
                 #endif
@@ -433,7 +435,7 @@ void loop() {
 
         String prevCommand;
 
-        #ifdef DEBUG
+        #ifdef ARM_DEBUG
             Serial.println("|------------------------------------------------------|");
             Serial.print("| Main MCU Command Recieved: ");
             Serial.println(input);
@@ -503,7 +505,7 @@ void loop() {
             speeds[2] = args[4].toFloat() * 0.1;
             String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
 
-            #ifdef DEBUG
+            #ifdef ARM_DEBUG
                     Serial.println("|------------------------------------------------------|");
                     Serial.println("| Main MCU Serial ctrl cmd recieved                    |");
             #endif
@@ -526,14 +528,14 @@ void loop() {
         else if (args[0] == "IKA") // Set the target angle for IK
         {
 
-            #ifdef DEBUG
+            #ifdef ARM_DEBUG
                     Serial.println("|------------------------------------------------------|");
                     Serial.println("| Serial IK Angle cmd recieved                         |");
             #endif
 
-            for (int i = 1; i <= MOTOR_AMOUNT; i++) 
+            for (int i = 0; i < MOTOR_AMOUNT; i++) 
             {
-                AxisSetPosition[i-1] = args[i].toFloat();
+                AxisSetPosition[i] = args[i + 1].toFloat();
             }
             lastCtrlCmd = millis();
         }
@@ -541,7 +543,7 @@ void loop() {
         else if (args[0] == "IKT") // Set the speed for each controller based on the given time
         {   
             
-            #ifdef DEBUG
+            #ifdef ARM_DEBUG
                     Serial.println("|------------------------------------------------------|");
                     Serial.println("| Serial IK Time cmd recieved                          |");
             #endif
@@ -557,7 +559,7 @@ void loop() {
         String input = COMMS_UART.readStringUntil('\n');
         input.trim();
 
-        #ifdef DEBUG
+        #ifdef ARM_DEBUG
             Serial.println("|------------------------------------------------------|");
             Serial.print("| From Motor MCU Recieved: ");
             Serial.println(input);
@@ -629,7 +631,7 @@ void safety_timeout()
     AX0En = 0;
     COMMS_UART.println("ctrl,0,0,0");
 
-    #ifdef DEBUG
+    #ifdef ARM_DEBUG
         Serial.println("|------------------------------------------------------|");
         Serial.println("|********************SAFETY TIMEOUT********************|");
     #else
@@ -671,7 +673,7 @@ void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
     dpsSpeed = (dpsSpeed*gearRatio)*7.63/1000;//0.05388
     // convert to period
     dpsSpeed = 1/dpsSpeed;
-    #ifdef DEBUG
+    #ifdef ARM_DEBUG
         Serial.println("|------------------------------------------------------|");
         Serial.print("| AX0 Speed Set To: ");
         Serial.println(dpsSpeed);
@@ -691,24 +693,21 @@ void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
 
 void updateMotorState()
 {
-    for (int i = 0; i <= MOTOR_AMOUNT; i++)
+    for (int i = 0; i < MOTOR_AMOUNT; i++)
     {
-        if(!AxisComplete[i])
+        if(!AxisComplete[i] && abs(AxisPosition[i] - AxisSetPosition[i]) < 1)
         {
-            if(abs(AxisPosition[i] - AxisSetPosition[i]) < 1)
+            // motorList[i-1]->stop();
+            if (i == 0)
             {
-                // motorList[i-1]->stop();
-                if (!i)
-                {
-                    AX0En = false;
-                }
-                else
-                {
-                COMMS_UART.printf("stop,%i",i);
-                }
-                
-                AxisComplete[i] = true;
+                AX0En = false;
             }
+            else
+            {
+                COMMS_UART.printf("stop,%i",i);
+            }
+            
+            AxisComplete[i] = true;
         }
     } 
 }
