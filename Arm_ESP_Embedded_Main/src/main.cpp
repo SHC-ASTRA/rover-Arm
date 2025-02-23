@@ -193,33 +193,31 @@ void setup()
     // ------------- //
 
     // initialize the AS5047P sensor and hold if sensor can't be initialized.
-    while(!ax0_encoder.initSPI())
-    {
+    if(!ax0_encoder.initSPI()) {
         Serial.println(F("Axis0 Encoder: Failed"));
-        delay(5000);
-    }
-    Serial.println("Axis0 Encoder: Success");
+      }else{
+          Serial.println("Axis0 Encoder: Success");
+      }
 
-
-    while (!ax1_encoder.initSPI()) {
+    if(!ax1_encoder.initSPI()) {
         Serial.println(F("Axis1 Encoder: Failed"));
-        delay(5000);
-    }
-    Serial.println("Axis1 Encoder: Success");
-
-    while (!ax1_encoder.initSPI())
-    {
-        Serial.println(F("Axis2 Encoder: Failed"));
-        delay(5000);
-    }
-    Serial.println("Axis2 Encoder: Success");
-
-    while (!ax2_encoder.initSPI())
-    {
-        Serial.println(F("Axis3 Encoder: Failed"));
-        delay(5000);
-    }
-    Serial.println("Axis3 Encoder: Success");
+      }else{
+          Serial.println("Axis1 Encoder: Success");
+      }
+  
+    if(!ax2_encoder.initSPI())
+      {
+          Serial.println(F("Axis2 Encoder: Failed"));
+      }else{
+          Serial.println("Axis2 Encoder: Success");
+      }
+  
+    if(!ax3_encoder.initSPI())
+      {
+          Serial.println(F("Axis3 Encoder: Failed"));
+      }else{
+          Serial.println("Axis3 Encoder: Success");
+      }
 
 
 }
@@ -380,7 +378,7 @@ void loop() {
                 
 
                 float speeds[3];
-                speeds[0] = canData[1] * 0.50;
+                speeds[0] = canData[1] * 0.75;
                 speeds[1] = canData[2] * 0.50;
                 speeds[2] = canData[3] * 0.50;
                 String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
