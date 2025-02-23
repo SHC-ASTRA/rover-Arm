@@ -149,7 +149,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     COMMS_UART.begin(COMMS_UART_BAUD);
 
-    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, 14, 13))
+    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, 13, 12))
         Serial.println("CAN bus started!");
     else
         Serial.println("CAN bus failed!");
@@ -481,6 +481,14 @@ void loop() {
         {
             vicCAN.relayFromSerial(args);
             Serial.println("Got Relay Command");
+        }
+
+        else if (args[0] == "can_relay_mode") {
+            if (args[1] == "on") {
+                vicCAN.relayOn();
+            } else if (args[1] == "off") {
+                vicCAN.relayOff();
+            }
         }
 
         //------------//
