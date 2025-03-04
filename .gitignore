@@ -4,9 +4,6 @@
 .vscode/launch.json
 .vscode/ipch
 
-build/
-install/
-log/
 .vscode/
 *.code-workspace
 .vscode/settings.json
