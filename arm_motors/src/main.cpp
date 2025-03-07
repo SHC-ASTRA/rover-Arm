@@ -42,11 +42,10 @@
 //  Settings  //
 //------------//
 
-// #define DEBUG_STATUS
 
-// #ifdef DEBUG
-// #    define COMMS_UART Serial
-// #endif
+#ifdef DEBUG
+#    define COMMS_UART Serial
+#endif
 
 
 //---------------------//
@@ -367,14 +366,14 @@ void loop() {
         //--------//
         //  Misc  //
         //--------//
-        /**/ if (args[0] == "ping")
+        if (args[0] == "ping")
         {
-#ifndef DEBUG
-            COMMS_UART.println("pong");
-#else
-            Serial.println("pong");
-            COMMS_UART.println("pong");
-#endif
+            #ifndef DEBUG
+                        COMMS_UART.println("pong");
+            #else
+                        Serial.println("pong");
+                        COMMS_UART.println("pong");
+            #endif
         } 
         else if (args[0] == "time") 
         {
@@ -539,78 +538,18 @@ void updateMotorStatus()
 }
 
 /*
-
-// Bypasses the acceleration to make the rover turn clockwise
-// Should only be used for autonomy
-void turnCW()
-{
-    for (int i = 0; i < 4; i++)
-        motorList[i]->sendDuty(0.6);
-}
-
-// Bypasses the acceleration to make the rover turn counterclockwise
-// Should only be used for autonomy
-void turnCCW()
-{
-    for (int i = 0; i < 4; i++)
-        motorList[i]->sendDuty(-0.6);
-}
-
-// Bypasses the acceleration to make the rover stop
-// Should only be used for autonomy, but it could probably be used elsewhere
+// To be tested
 void Stop()
 {
     for (int i = 0; i < 4; i++) {
         motorList[i]->stop();
     }
 }
-
 */
+
 // Enables or disables brake mode for all motors
 void Brake(bool enable) {
     for (int i = 0; i < MOTOR_AMOUNT; i++)
         motorList[i]->setBrake(enable);
 }
-/*
 
-// Tells the rover to go forwards
-// Does not bypass acceleration
-// Autonomy
-void goForwards(float speed)
-{
-    for (int i = 0; i < 4; i++ )
-        motorList[i]->setDuty(speed);
-}
-
-// Tells the rover to go backwards
-// Does not bypass acceleration
-// Autonomy
-void goBackwards(float speed)
-{
-    float temp = (-1) * speed;
-    for (int i = 0; i < 4; i++ )
-        motorList[i]->setDuty(temp);
-}
-
-void driveMeters(float meters) {
-    const float degrees = (meters / WHEEL_CIRCUMFERENCE) * 360.0;
-
-    // Left motors
-    Motor1.turnByDeg(degrees);
-    Motor2.turnByDeg(degrees);
-    // Right motors
-    Motor3.turnByDeg(-1 * degrees);
-    Motor4.turnByDeg(-1 * degrees);
-}
-
-float getDriveSpeed() {
-    float sum;
-    for (int i = 0; i < MOTOR_AMOUNT; i++) {
-        sum += abs(motorList[i]->status1.sensorVelocity);
-    }
-    const float avgSpeed = sum / 4;  // RPM
-    const float gearBox = 64;  // 64:1 for testbed
-    return (avgSpeed / gearBox) * WHEEL_CIRCUMFERENCE / 60;  // meters per second
-}
-
-*/

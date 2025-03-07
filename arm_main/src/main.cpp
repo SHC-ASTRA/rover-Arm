@@ -98,10 +98,6 @@ void convertToDutyCycle(double& dpsSpeed, float gearRatio);
 void convertToDutyCycleA0(double& dpsSpeed, float gearRatio);
 void updateMotorState();
 
-// int findRotationDirection(float current_direction, float target_direction);
-// bool autoTurn(int time,float target_direction);
-//void setLED(int r_val, int b_val, int g_val);
-
 
 //--------//
 //  Misc  //
@@ -385,7 +381,6 @@ void loop() {
 
                 COMMS_UART.println(command);
 
-                // AX0Speed = abs(args[1].toFloat()) * 10;
                 if (canData[0] < 0)
                 {
                     sd.setDirection(TURNRIGHT);
@@ -608,11 +603,8 @@ void outputEncoders()
 void readEncoders()
 {
     AxisPosition[0] = adjustEncoderValue(round(ax0_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax0_encoder_offset);
-    // delay(1);
     AxisPosition[1] = adjustEncoderValue(round(ax1_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax1_encoder_offset);
-    // delay(1);
     AxisPosition[2] = adjustEncoderValue(round(ax2_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax2_encoder_offset);
-    // delay(1);
     AxisPosition[3] = adjustEncoderValue(round(ax3_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax3_encoder_offset);
 }
 
