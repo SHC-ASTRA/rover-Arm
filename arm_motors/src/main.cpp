@@ -1,5 +1,5 @@
 /**
- * @file Main.cpp
+ * @file main.cpp
  * @author Charles Marmann (cmm0077@uah.edu)
  * @author David Sharpe (ds0196@uah.edu)
  * @author Jack Schumacher (js0342@uah.edu)
@@ -12,36 +12,17 @@
 //------------//
 
 #include <Arduino.h>
-
-
 #include <cmath>
 
 #include "AstraMisc.h"
+#include "AstraREVCAN.h"
 #include "AstraMotors.h"
-
-
-// Project header
 #include "project/ARM.h"
-
-// Temporary Need to Remove
-#include "project/CORE.h"
-
-// REV CAN
-#ifdef OLD_ASTRACAN_ENABLE
-#    include "AstraCAN.h"
-#else
-#    include "AstraREVCAN.h"
-#endif
-
-// #ifdef DEBUG
-// #    define COMMS_UART Serial
-// #endif
 
 
 //------------//
 //  Settings  //
 //------------//
-
 
 #ifdef DEBUG
 #    define COMMS_UART Serial
@@ -52,13 +33,13 @@
 //  Component classes  //
 //---------------------//
 
-// AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float
-// setMaxDuty)
-AstraMotors MotorAxis1(MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
-AstraMotors MotorAxis2(MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
-AstraMotors MotorAxis3(MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);   // Back Right
+// AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float setMaxDuty)
+AstraMotors MotorAxis1(MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);
+AstraMotors MotorAxis2(MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);
+AstraMotors MotorAxis3(MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);
 
 AstraMotors* motorList[] = {&MotorAxis1, &MotorAxis2, &MotorAxis3};
+
 
 //----------//
 //  Timing  //
@@ -66,8 +47,10 @@ AstraMotors* motorList[] = {&MotorAxis1, &MotorAxis2, &MotorAxis3};
 
 uint32_t lastBlink = 0;
 bool ledState = false;
+
 unsigned long lastHB = 0;
 int heartBeatNum = 1;
+
 unsigned long lastCtrlCmd = 0;
 unsigned long lastMotorStatus = 0;
 unsigned long lastMotorFeedback = 0;
@@ -75,19 +58,18 @@ bool safetyOn = true;
 
 uint32_t lastAccel = 0;
 
+
 //--------------//
 //  Prototypes  //
 //--------------//
 
-bool setAxisDeg(int axis, int degrees, int timeout, bool rel_abs);      // set what degree the axis is trying to go to
-void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed);                                 // set speed at which an axis moves
+bool setAxisDeg(int axis, int degrees, int timeout, bool rel_abs);  // set what degree the axis is trying to go to
+void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed);    // set speed at which an axis moves
 void Brake(bool enable);
-void loopHeartbeats();
-void safety_timeout();
-float getDriveSpeed();
+void Stop();
+// TODO: These two functions really seem like the same thing...
 void updateMotorStatus();
 void motorFeedback();
-void Stop();
 
 
 //------------------------------------------------------------------------------------------------//
@@ -121,14 +103,6 @@ void setup() {
     Serial.begin(SERIAL_BAUD);              // Communication between motor MCU and Type-C Port
     COMMS_UART.begin(COMMS_UART_BAUD);      // Communication between both the main and motor microcontroller
 
-    //-----------//
-    //  Sensors  //
-    //-----------//
-
-    //--------------------//
-    //  Misc. Components  //
-    //--------------------//
-
     // Setup CAN
     if (ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX)) 
     {
@@ -138,6 +112,14 @@ void setup() {
     {
         COMMS_UART.println("CAN bus failed!");
     }
+
+    //-----------//
+    //  Sensors  //
+    //-----------//
+
+    //--------------------//
+    //  Misc. Components  //
+    //--------------------//
 }
 
 
@@ -202,7 +184,13 @@ void loop() {
     }
 
     // Safety timeout
-    safety_timeout();
+    if (safetyOn && millis() - lastCtrlCmd > 2000)
+    {
+        lastCtrlCmd = millis();
+
+        COMMS_UART.println("No Control, Safety Timeout");
+        Stop();
+    }
 
     // Motor status debug printout
 #if defined(DEBUG2)
@@ -228,6 +216,7 @@ void loop() {
         Serial.println(" rotations");
     }
 #endif
+
 
     //-------------//
     //  CAN Input  //
@@ -334,6 +323,7 @@ void loop() {
 #endif
     }
 
+
     //------------------//
     //  UART/USB Input  //
     //------------------//
@@ -351,30 +341,26 @@ void loop() {
     //                                                       //
     //-------------------------------------------------------//
     if (COMMS_UART.available()) {
-        String command = COMMS_UART.readStringUntil('\n');
-        command.trim();
+        String input = COMMS_UART.readStringUntil('\n');
+        input.trim();
+        std::vector<String> args = {};
+        parseInput(input, args);
+        args[0].toLowerCase();
 
-        COMMS_UART.println(command);
+        COMMS_UART.println(input);
 
         static String prevCommand;
-
-        std::vector<String> args = {};
-        parseInput(command, args);
-
-        args[0].toLowerCase();
 
         //--------//
         //  Misc  //
         //--------//
+
         if (args[0] == "ping")
         {
-            #ifndef DEBUG
-                        COMMS_UART.println("pong");
-            #else
-                        Serial.println("pong");
-                        COMMS_UART.println("pong");
-            #endif
-        } 
+            COMMS_UART.println("pong");
+            Serial.println("pong");
+        }
+
         else if (args[0] == "time") 
         {
             COMMS_UART.println(millis());
@@ -387,21 +373,24 @@ void loop() {
         //----------//
         //  Motors  //
         //----------//
+
         else if (args[0] == "ctrl")
         {   
             lastCtrlCmd = millis();
-            if (command != prevCommand)
+            if (input != prevCommand)
             {
-                prevCommand = command;
+                prevCommand = input;
 
                 setAxisSpeeds(args[1].toFloat(), args[2].toFloat(), args[3].toFloat());
                 COMMS_UART.println("Motors Recieved Ctrl Command");
             }
         }
+
         else if (args[0] == "safetyoff")
         {
             safetyOn = false;
         }
+
         else if (args[0] == "stop")
         {
             if (checkArgs(args, 1) && args[1].toInt() > 0 && args[1].toInt() <= MOTOR_AMOUNT)
@@ -419,49 +408,17 @@ void loop() {
             if (args[1] == "on") 
             {
                 Brake(true);
-#ifdef DEBUG
-                Serial.println("Setting brakemode on.");
-#endif
             }
 
             else if (args[1] == "off")
             {
                 Brake(false);
-#ifdef DEBUG
-                Serial.println("Setting brakemode off.");
-#endif
             }
         }
-#if defined(DEBUG2) && !defined(OLD_ASTRACAN_ENABLE)
+
         else if (args[0] == "id") {
-            CAN_identifySparkMax(2);
+            CAN_identifySparkMax(args[1].toInt());
         }
-        else if (args[0] == "speed" && checkArgs(args, 1)) {
-            CAN_sendVelocity(MOTOR_ID_BL, args[1].toFloat());
-        }
-        else if (args[0] == "newduty") {
-            Serial.print("Setting duty cycle ");
-            Serial.println(args[1].toFloat());
-            CAN_sendDutyCycle(1, args[1].toFloat());
-            CAN_sendDutyCycle(2, args[1].toFloat());
-            CAN_sendDutyCycle(3, args[1].toFloat());
-            CAN_sendDutyCycle(4, args[1].toFloat());
-        }
-        else if (args[0] == "stop") {
-            Serial.println("Stopping all motors");
-            for (int i = 0; i < 4; i++)
-            {
-                CAN_sendDutyCycle(i, 0);
-                Stop();
-            }
-        }
-        else if (args[0] == "turnby") {
-            Motor2.turnByDeg(args[1].toFloat());
-        }
-        else if (args[0] == "forward") {
-            driveMeters(args[1].toFloat());
-        }
-#endif
     }
 }
 
@@ -483,18 +440,6 @@ void loop() {
 //                                                    //
 //----------------------------------------------------//
 
-void safety_timeout()
-{
-    
-    if (safetyOn && (millis() - lastCtrlCmd > 2000))  // if no control commands are received for 2 seconds
-    {
-        lastCtrlCmd = millis();
-
-        COMMS_UART.println("No Control, Safety Timeout");
-        Stop();
-    }
-}
-
 void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
 {
     COMMS_UART.println("Setting Motor Speeds");
@@ -503,20 +448,13 @@ void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
     motorList[2]->setDuty(A3Speed);
 }
 
-void motorFeedback()
-{
-    for (int i = 1; i < MOTOR_AMOUNT; i++)
-    { 
-        String motor_feedback = 39+","+i+',';
-        motor_feedback += motorList[i]->status1.busVoltage*10+',';
-        motor_feedback += motorList[i]->status1.outputCurrent*10+',';
-        motor_feedback += motorList[i]->status1.motorTemperature*10;
-        COMMS_UART.println(motor_feedback);
-    }
+// Enables or disables brake mode for all motors
+void Brake(bool enable) {
+    for (int i = 0; i < MOTOR_AMOUNT; i++)
+        motorList[i]->setBrake(enable);
 }
 
-// Bypasses the acceleration to make the rover stop
-// Should only be used for autonomy, but it could probably be used elsewhere
+// Bypasses the acceleration to make the rover stop immediately
 void Stop()
 {
     for (int i = 0; i < MOTOR_AMOUNT; i++) {
@@ -537,19 +475,14 @@ void updateMotorStatus()
     }
 }
 
-/*
-// To be tested
-void Stop()
+void motorFeedback()
 {
-    for (int i = 0; i < 4; i++) {
-        motorList[i]->stop();
+    for (int i = 1; i < MOTOR_AMOUNT; i++)
+    { 
+        String motor_feedback = 39+","+i+',';
+        motor_feedback += motorList[i]->status1.busVoltage*10+',';
+        motor_feedback += motorList[i]->status1.outputCurrent*10+',';
+        motor_feedback += motorList[i]->status1.motorTemperature*10;
+        COMMS_UART.println(motor_feedback);
     }
 }
-*/
-
-// Enables or disables brake mode for all motors
-void Brake(bool enable) {
-    for (int i = 0; i < MOTOR_AMOUNT; i++)
-        motorList[i]->setBrake(enable);
-}
-
