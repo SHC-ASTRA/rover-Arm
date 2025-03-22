@@ -261,17 +261,15 @@ void loop() {
 #endif
     }
 
-<<<<<<< HEAD
     outputEncoders();
-=======
     if ((millis() - lastEncoderOutput >= 500))
     {
         lastEncoderOutput = millis();
         char buffer[50];
         sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
         Serial.println(buffer);
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES,(AxisPosition[0]*10),(AxisPosition[1]*10),(AxisPosition[2]*10),(AxisPosition[3]*10));
     }
->>>>>>> parent of 5d5a61f (Report through CAN encoder angles/positions every 500 ms)
 
 
     //------------------//
