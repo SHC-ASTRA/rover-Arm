@@ -84,7 +84,6 @@ int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
 //--------------//
 
 void outputEncoders();
-void readEncoders();
 int adjustEncoderValue(int encoderValue, int offset);
 
 void safety_timeout();
@@ -247,7 +246,7 @@ void loop() {
     }
 
     // Safety timeout if no ctrl command for 2 seconds
-    if(millis() - lastCtrlCmd > 2000)
+    if (millis() - lastCtrlCmd > 2000)
     {
         lastCtrlCmd = millis();
         AX0En = 0;
@@ -261,7 +260,13 @@ void loop() {
 #endif
     }
 
-    outputEncoders();
+    if ((millis() - lastEncoderOutput >= 500))
+    {
+        lastEncoderOutput = millis();
+        char buffer[50];
+        sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
+        Serial.println(buffer);
+    }
 
 
     //------------------//
@@ -572,17 +577,6 @@ int adjustEncoderValue(int encoderValue, int offset) {
         adjustedValue += 360; // Wrap around at 360 degrees
     }
     return adjustedValue % 360; // Ensure the value is within 0-359 range
-}
-
-void outputEncoders()
-{
-    if((millis()-lastEncoderOutput>=500))
-    {
-        lastEncoderOutput = millis();
-        char buffer[50];
-        sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
-        Serial.println(buffer);
-    }
 }
 
 
