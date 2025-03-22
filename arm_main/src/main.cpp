@@ -84,6 +84,7 @@ int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
 //--------------//
 
 void outputEncoders();
+void readEncoders();
 int adjustEncoderValue(int encoderValue, int offset);
 
 void safety_timeout();
@@ -246,7 +247,7 @@ void loop() {
     }
 
     // Safety timeout if no ctrl command for 2 seconds
-    if (millis() - lastCtrlCmd > 2000)
+    if(millis() - lastCtrlCmd > 2000)
     {
         lastCtrlCmd = millis();
         AX0En = 0;
@@ -260,13 +261,7 @@ void loop() {
 #endif
     }
 
-    if ((millis() - lastEncoderOutput >= 500))
-    {
-        lastEncoderOutput = millis();
-        char buffer[50];
-        sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
-        Serial.println(buffer);
-    }
+    outputEncoders();
 
 
     //------------------//
@@ -349,6 +344,8 @@ void loop() {
                 {
                     AxisSetPosition[i] = canData[i];
                 }
+                lastCtrlCmd = millis();
+                moveToPossition();
             }
         }
         else if (commandID == CMD_ARM_IK_TTG) {
@@ -524,6 +521,7 @@ void loop() {
                 AxisSetPosition[i] = args[i + 1].toFloat();
             }
             lastCtrlCmd = millis();
+            moveToPossition();
         }
 
         else if (args[0] == "IKT") // Set the speed for each controller based on the given time
@@ -579,6 +577,17 @@ int adjustEncoderValue(int encoderValue, int offset) {
     return adjustedValue % 360; // Ensure the value is within 0-359 range
 }
 
+void outputEncoders()
+{
+    if((millis()-lastEncoderOutput>=500))
+    {
+        lastEncoderOutput = millis();
+        char buffer[50];
+        sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
+        Serial.println(buffer);
+    }
+}
+
 
 void readEncoders()
 {
@@ -606,7 +615,40 @@ void findSpeedandTime(int time)               // Based on how long it will take 
     convertToDutyCycle(setSpeed[3], 2500);
 
     // Send the ctrl, speed, speed, speed command here
-    COMMS_UART.printf("ctrl,%i,%i,%i\n", setSpeed[1], setSpeed[2], setSpeed[3]);
+    COMMS_UART.printf("ctrl,%f,%f,%f\n", setSpeed[1], setSpeed[2], setSpeed[3]);
+}
+
+int findRotationDirection(float current_direction, float target_direction)
+{
+    if (current_direction <= target_direction)
+    {
+        return 1; 
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+void moveToPossition()               // Based on how long it will take for axis 0 to get to target location
+{
+    double setSpeed[MOTOR_AMOUNT];
+    // Figure out the degrees per second
+    readEncoders();
+    for (int i = 0; i < MOTOR_AMOUNT; i++)
+    {
+        if (findRotationDirection(AxisPosition[i],AxisSetPosition[i]))
+        {
+            setSpeed[i] = 0.1;
+        }
+        else
+        {
+            setSpeed[i] = -0.1;
+        }
+    }
+
+    // Send the ctrl, speed, speed, speed command here
+    COMMS_UART.printf("ctrl,%f,%f,%f\n", setSpeed[1], setSpeed[2], setSpeed[3]);
 }
 
 // Pass by reference because it's easier
