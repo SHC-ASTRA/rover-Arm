@@ -92,6 +92,7 @@ void findSpeedandTime(int time);
 void convertToDutyCycle(double& dpsSpeed, float gearRatio);
 void convertToDutyCycleA0(double& dpsSpeed, float gearRatio);
 void updateMotorState();
+void moveToPossition();
 
 
 //------------------------------------------------------------------------------------------------//
