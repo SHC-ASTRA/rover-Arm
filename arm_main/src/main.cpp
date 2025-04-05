@@ -55,9 +55,9 @@ AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED);
 AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 
 ArmJoint axis0(&ax0_encoder, ax0_encoder_offset);
-ArmJoint axis1(&ax1_encoder, ax1_encoder_offset);
-ArmJoint axis2(&ax2_encoder, ax2_encoder_offset);
-ArmJoint axis3(&ax3_encoder, ax3_encoder_offset);
+ArmJoint axis1(&ax1_encoder, ax1_encoder_offset, -60, 115);
+ArmJoint axis2(&ax2_encoder, ax2_encoder_offset, -120, 120);
+ArmJoint axis3(&ax3_encoder, ax3_encoder_offset, -95, 110);
 ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
 AstraArm arm(joints);
@@ -75,32 +75,17 @@ const uint16_t StepPeriodUs = 2000;
 unsigned long lastFeedback = 0;
 // unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
-// unsigned long lastEncoderRead = 0;
-// unsigned long lastEncoderOutput = 0;
 
 unsigned long lastIKUpdate = 0;
 
 // double AX0Speed = 0;
 // bool AX0En = false;
 
-// unsigned int goalTime;
-
-// bool AxisComplete    [] = {true,true,true,true};     // AxisXComplete    where x = 1..3
-// int  AxisSetPosition [] = {0,0,0,0};              // AxisXSetPosition ^^^
-// int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
-
 
 //--------------//
 //  Prototypes  //
 //--------------//
 
-// void readEncoders();
-// int adjustEncoderValue(int encoderValue, int offset);
-
-// void safety_timeout();
-// void findSpeedandTime(int time);
-// void convertToDutyCycle(double& dpsSpeed, float gearRatio);
-// void convertToDutyCycleA0(double& dpsSpeed, float gearRatio);
 // void updateMotorState();
 
 
@@ -244,30 +229,25 @@ void loop() {
     //     sd.step();
     // }
 
-    if (millis() - lastFeedback >= 2000)
+    if (millis() - lastFeedback >= 1000)
     {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEncoderAngle * 10, axis1.lastEncoderAngle * 10, axis2.lastEncoderAngle * 10, axis3.lastEncoderAngle * 10);
+        // Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
+        // Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEncoderAngle, axis1.lastEncoderAngle, axis2.lastEncoderAngle, axis3.lastEncoderAngle);
     }
-
-    // if (millis() - lastEncoderRead >= 250)
-    // {
-    //     lastEncoderRead = millis();
-    //     readEncoders();
-    // }
 
     // Safety timeout if no ctrl command for 2 seconds
     if (millis() - lastCtrlCmd > 2000)
     {
         lastCtrlCmd = millis();
         arm.stop();
-        // COMMS_UART.println("ctrl,0,0,0");
 
 #ifdef ARM_DEBUG
         Serial.println("|------------------------------------------------------|");
         Serial.println("|********************SAFETY TIMEOUT********************|");
 #else
-        Serial.println("No Control / Safety Timeout");
+        Serial.println("Safety timeout");
 #endif
     }
 
@@ -275,14 +255,6 @@ void loop() {
         lastIKUpdate = millis();
         arm.updateIKMotion();
     }
-
-    // if ((millis() - lastEncoderOutput >= 500))
-    // {
-    //     lastEncoderOutput = millis();
-    //     char buffer[50];
-    //     sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
-    //     Serial.println(buffer);
-    // }
 
 
     //------------------//
@@ -325,7 +297,7 @@ void loop() {
 
         if (commandID == CMD_PING) {
             vicCAN.respond(1);  // "pong"
-            // Serial.println("Received ping over CAN");
+            Serial.println("Received ping over CAN");
         }
         else if (commandID == CMD_B_LED) {
             if (canData.size() == 1) {
@@ -361,10 +333,7 @@ void loop() {
                 Serial.println("|------------------------------------------------------|");
                 Serial.println("| VicCan IK Angle cmd recieved                         |");
 #endif
-                // for (int i = 0; i < MOTOR_AMOUNT; i++) 
-                // {
-                //     AxisSetPosition[i] = canData[i];
-                // }
+                lastCtrlCmd = millis();
                 arm.setTargetAngles(canData[0], canData[1], canData[2], canData[3]);
             }
         }
@@ -374,40 +343,22 @@ void loop() {
                 Serial.println("|------------------------------------------------------|");
                 Serial.println("| VicCan IK Time cmd recieved                          |");
 #endif
-                // findSpeedandTime(canData[0]);
                 arm.setTTG(canData[0]);
             }
         }
         else if (commandID == CMD_ARM_MANUAL) {
             if (canData.size() == 4) {
-                lastCtrlCmd = millis();
 #ifdef ARM_DEBUG
                 Serial.println("|------------------------------------------------------|");
                 Serial.println("| VicCan ctrl cmd recieved                             |");
 #endif
-
-                // float speeds[3];
-                // speeds[0] = canData[1] * 0.75;
-                // speeds[1] = canData[2] * 0.50;
-                // speeds[2] = canData[3] * 0.50;
-
-                // COMMS_UART.printf("ctrl,%f,%f,%f\n", speeds[0], speeds[1], speeds[2]);
-
-                // if (canData[0] < 0)
-                // {
-                //     sd.setDirection(TURNRIGHT);
-                //     AX0En = true;
-                // }
-                // else if (canData[0] > 0)
-                // {
-                //     sd.setDirection(TURNLEFT);
-                //     AX0En = true;
-                // }
-                // else
-                // {
-                //     AX0En = false;
-                // }
-                arm.runDuty(canData[0], canData[1] * 0.75, canData[2] * 0.5, canData[3] * 0.5);
+                lastCtrlCmd = millis();
+                float speeds[4] = {0};
+                speeds[0] = canData[0] == 0 ? 0 : canData[0] / 100.0;
+                speeds[1] = canData[1] == 0 ? 0 : canData[1] / 100.0;
+                speeds[2] = canData[2] == 0 ? 0 : canData[2] / 100.0;
+                speeds[3] = canData[3] == 0 ? 0 : canData[3] / 100.0;
+                arm.runDuty(speeds[0], speeds[1], speeds[2], speeds[3]);
             }
         }
     }
@@ -487,7 +438,9 @@ void loop() {
         else if (args[0] == "can_relay_tovic")
         {
             vicCAN.relayFromSerial(args);
+#ifdef DEBUG
             Serial.println("Got Relay Command");
+#endif
         }
 
         else if (args[0] == "can_relay_mode") {
@@ -498,51 +451,36 @@ void loop() {
             }
         }
 
+        else if (args[0] == "effangles") {
+            Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
+        }
+
+        else if (args[0] == "stop") {
+            arm.stop();
+        }
+
         //------------//
         //  Physical  //
         //------------//
 
         else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
         {
-            float speeds[3];
-            speeds[0] = args[2].toFloat() * 0.1;
-            speeds[1] = args[3].toFloat() * 0.1;
-            speeds[2] = args[4].toFloat() * 0.1;
-            String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
-
 #ifdef ARM_DEBUG
             Serial.println("|------------------------------------------------------|");
             Serial.println("| Main MCU Serial ctrl cmd recieved                    |");
 #endif
-
-            COMMS_UART.println(command);
-
-            // AX0Speed = abs(args[1].toFloat()) * 10;
-            // if (args[1].toFloat() < 0)
-            // {
-            //     sd.setDirection(TURNRIGHT);
-            // }
-            // else
-            // {
-            //     sd.setDirection(TURNLEFT);
-            // }
-            // AX0En = true;
             lastCtrlCmd = millis();
+            COMMS_UART.println(command);
         }
 
         else if (args[0] == "IKA") // Set the target angle for IK
         {
-
 #ifdef ARM_DEBUG
             Serial.println("|------------------------------------------------------|");
             Serial.println("| Serial IK Angle cmd recieved                         |");
 #endif
 
             lastCtrlCmd = millis();
-            // for (int i = 0; i < MOTOR_AMOUNT; i++) 
-            // {
-            //     AxisSetPosition[i] = args[i + 1].toFloat();
-            // }
         }
 
         else if (args[0] == "IKT") // Set the speed for each controller based on the given time
@@ -568,6 +506,7 @@ void loop() {
         Serial.println("|------------------------------------------------------|");
         Serial.print("| From Motor MCU Recieved: ");
 #endif
+        Serial.print("Motor MCU:\t");
         Serial.println(input);
     }
 }
@@ -590,25 +529,7 @@ void loop() {
 //                                                    //
 //----------------------------------------------------//
 
-// int adjustEncoderValue(int encoderValue, int offset) {
-//     int adjustedValue = encoderValue - offset;
-//     if (adjustedValue < 0) {
-//         adjustedValue += 360; // Wrap around at 360 degrees
-//     }
-//     return adjustedValue % 360; // Ensure the value is within 0-359 range
-// }
 
-
-// void readEncoders()
-// {
-//     AxisPosition[0] = adjustEncoderValue(round(ax0_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax0_encoder_offset);
-//     AxisPosition[1] = adjustEncoderValue(round(ax1_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax1_encoder_offset);
-//     AxisPosition[2] = adjustEncoderValue(round(ax2_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax2_encoder_offset);
-//     AxisPosition[3] = adjustEncoderValue(round(ax3_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax3_encoder_offset);
-// }
-
-
-// // TODO: Needs to be complete- needs to get time to target and target angles per joint- how fast does the joint need to move
 // void findSpeedandTime(int time)               // Based on how long it will take for axis 0 to get to target location
 // {
 //     double setSpeed[MOTOR_AMOUNT];

@@ -24,11 +24,14 @@ void AstraArm::setTargetAngles(float angle0, float angle1, float angle2, float a
 }
 
 void AstraArm::updateIKMotion() {
+    for (int i = 0; i < 4; i++) {
+        joints[i]->readAngle();
+    }
     if (!isIKMode)
         return;
     float dutycycles[4] = {0};
     for (int i = 0; i < 4; i++) {
         dutycycles[i] = joints[i]->updateIKMotion();
     }
-    MOTORSERIAL.printf("ctrl,%f,%f,%f,%f\n", dutycycles[0], dutycycles[1], dutycycles[2], dutycycles[3]);
+    sendDuty(dutycycles[0], dutycycles[1], dutycycles[2], dutycycles[3]);
 }

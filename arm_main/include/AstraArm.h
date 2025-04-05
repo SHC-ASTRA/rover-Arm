@@ -16,6 +16,10 @@ class AstraArm {
    private:
     ArmJoint* joints[4];
     bool isIKMode;
+    inline void sendDuty(float duty0, float duty1, float duty2, float duty3) {
+        // MOTORSERIAL.printf("ctrl,%f,%f,%f,%f\n", duty0, duty1, duty2, duty3);
+        MOTORSERIAL.printf("ctrl,%f,%f,%f\n", duty1, duty2, duty3);
+    }
 
    public:
     AstraArm(ArmJoint* setJoints[]);
@@ -24,8 +28,7 @@ class AstraArm {
 
     inline void runDuty(float duty0, float duty1, float duty2, float duty3) {
         isIKMode = false;
-        // MOTORSERIAL.printf("ctrl,%f,%f,%f,%f\n", duty0, duty1, duty2, duty3);
-        MOTORSERIAL.printf("ctrl,%f,%f,%f\n", duty1, duty2, duty3);
+        sendDuty(duty0, duty1, duty2, duty3);
     }
     inline void setTTG(int ttgMs) {
         for (int i = 0; i < 4; i++) {
@@ -33,7 +36,6 @@ class AstraArm {
         }
     }
     inline void stop() {
-        isIKMode = false;
-        MOTORSERIAL.println("ctrl,0,0,0");
+        runDuty(0, 0, 0, 0);
     }
 };
