@@ -25,6 +25,11 @@ ArmJoint::ArmJoint(AS5047P* setEncoder, float setZeroAngle, int setGearRatio, bo
 float ArmJoint::readAngle() {
     AS5047P_Types::ERROR_t errorInfo;
     lastEncoderAngle = encoder->readAngleDegree(true, &errorInfo);
+
+    lastEncoderAngle = fmod(lastEncoderAngle, 360.0);
+    if(lastEncoderAngle < 0)
+        lastEncoderAngle += 360.0;
+
     lastEncoderReadTime = millis();
     lastEffectiveAngle = lastEncoderAngle - zeroAngle;
     return lastEffectiveAngle;
