@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include <AS5047P.h>
 
-const float PRECISION = 1.5;
+const float PRECISION = 1;
 
 const float SPEED_MULT = 3.0;
 const float MAX_SPEED = 0.75;
@@ -18,8 +18,8 @@ const float MIN_SPEED = 0.2;
 /**
  * @brief Clamps angle between -180 and +180 degrees
  * 
- * @param angle 
- * @return float 
+ * @param angle degrees
+ * @return float degrees
  */
 float clamp_angle(float angle);
 

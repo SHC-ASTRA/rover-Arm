@@ -232,9 +232,10 @@ void loop() {
     if (millis() - lastFeedback >= 1000)
     {
         lastFeedback = millis();
-        vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEncoderAngle * 10, axis1.lastEncoderAngle * 10, axis2.lastEncoderAngle * 10, axis3.lastEncoderAngle * 10);
-        // Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
-        // Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEncoderAngle, axis1.lastEncoderAngle, axis2.lastEncoderAngle, axis3.lastEncoderAngle);
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
+#ifdef DEBUG
+        Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
+#endif
     }
 
     // Safety timeout if no ctrl command for 2 seconds
