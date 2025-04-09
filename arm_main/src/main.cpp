@@ -335,7 +335,12 @@ void loop() {
                 Serial.println("| VicCan IK Angle cmd recieved                         |");
 #endif
                 lastCtrlCmd = millis();
-                arm.setTargetAngles(canData[0], canData[1], canData[2], canData[3]);
+                float speeds[4] = {0};
+                speeds[0] = canData[0] == 0 ? 0 : canData[0] / 10.0;
+                speeds[1] = canData[1] == 0 ? 0 : canData[1] / 10.0;
+                speeds[2] = canData[2] == 0 ? 0 : canData[2] / 10.0;
+                speeds[3] = canData[3] == 0 ? 0 : canData[3] / 10.0;
+                arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
             }
         }
         else if (commandID == CMD_ARM_IK_TTG) {
