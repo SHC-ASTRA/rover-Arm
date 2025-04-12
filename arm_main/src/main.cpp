@@ -71,7 +71,7 @@ const uint16_t StepPeriodUs = 2000;
 
 unsigned long lastFeedback = 0;
 unsigned long lastVoltRead = 0;
-unsigned long lastMotorStep = 0;
+// unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
 unsigned long lastEncoderRead = 0;
 unsigned long lastEncoderOutput = 0;
@@ -233,11 +233,11 @@ void loop() {
     }
 #endif
 
-    if ((millis() - lastMotorStep >= 1) && AX0En)
-    {
-        lastMotorStep = millis();
-        sd.step();
-    }
+    // if ((millis() - lastMotorStep >= 1) && AX0En)
+    // {
+    //     lastMotorStep = millis();
+    //     sd.step();
+    // }
 
     if (millis() - lastVoltRead > 1000) {
         lastVoltRead = millis();
@@ -247,12 +247,6 @@ void loop() {
         float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 1.1);
 
         vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
-    }
-
-    if (millis() - lastEncoderRead >= 250)
-    {
-        lastEncoderRead = millis();
-        readEncoders();
     }
 
     // Safety timeout if no ctrl command for 2 seconds
@@ -268,15 +262,6 @@ void loop() {
 #else
         Serial.println("No Control / Safety Timeout");
 #endif
-    }
-
-    if ((millis() - lastEncoderOutput >= 500))
-    {
-        lastEncoderOutput = millis();
-        Serial.printf("AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d\n", AxisPosition[0], AxisPosition[1],
-            AxisPosition[2], AxisPosition[3]);
-        // Encoder Angles VicCAN frame uses deg*10 to keep 1 decimal precision with ints
-        vicCAN.send(CMD_ARM_ENCODER_ANGLES, AxisPosition[0] * 10, AxisPosition[1] * 10, AxisPosition[2] * 10, AxisPosition[3] * 10);
     }
 
 
