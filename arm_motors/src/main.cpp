@@ -34,9 +34,9 @@
 //---------------------//
 
 // AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float setMaxDuty)
-AstraMotors MotorAxis1(MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);
-AstraMotors MotorAxis2(MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);
-AstraMotors MotorAxis3(MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true, 1000, 1.0);
+AstraMotors MotorAxis1(MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true);
+AstraMotors MotorAxis2(MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true);
+AstraMotors MotorAxis3(MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true);
 
 AstraMotors* motorList[] = {&MotorAxis1, &MotorAxis2, &MotorAxis3};
 
@@ -180,7 +180,7 @@ void loop() {
     if (millis() - lastMotorFeedback >= 2000) // Change to 1000?
     {
         lastMotorFeedback = millis();
-        motorFeedback();
+        // motorFeedback();
     }
 
     // Safety timeout
@@ -196,7 +196,7 @@ void loop() {
     if (millis() - lastMotorStatus > 500) { 
         lastMotorStatus = millis();
 
-        for (int i = 0; i < MOTOR_AMOUNT; i++) {
+        for (int i = 0; i < 3; i++) {
             if (millis() - motorList[i]->status1.timestamp > 500)  // Don't send outdated data
                 continue;
             Serial.printf("motorstatus,%d,%d,%d,%d\n", motorList[i]->getID(), int(motorList[i]->status1.motorTemperature * 10),
@@ -222,7 +222,7 @@ void loop() {
 #endif
 
         if ((apiId & 0x60) == 0x60) {  // Periodic status
-            for (int i = 0; i < MOTOR_AMOUNT; i++) {
+            for (int i = 0; i < 3; i++) {
                 if (deviceId == motorList[i]->getID()) {
                     motorList[i]->parseStatus(apiId, rxFrame.data);
                     break;
@@ -262,9 +262,10 @@ void loop() {
         parseInput(input, args);
         args[0].toLowerCase();
 
-        COMMS_UART.println(input);
+        Serial1.println(input);
+        Serial.println(input);
 
-        static String prevCommand;
+        String prevCommand;
 
         //--------//
         //  Misc  //
@@ -297,7 +298,7 @@ void loop() {
                 prevCommand = input;
 
                 setAxisSpeeds(args[1].toFloat(), args[2].toFloat(), args[3].toFloat());
-                COMMS_UART.println("Motors Recieved Ctrl Command");
+                // COMMS_UART.println("Motors Received Ctrl Command");
             }
         }
 
@@ -357,7 +358,7 @@ void loop() {
 
 void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
 {
-    COMMS_UART.println("Setting Motor Speeds");
+    // COMMS_UART.println("Setting Motor Speeds");
     motorList[0]->setDuty(A1Speed);
     motorList[1]->setDuty(A2Speed);
     motorList[2]->setDuty(A3Speed);
