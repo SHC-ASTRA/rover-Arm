@@ -61,7 +61,7 @@ AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 
 ArmJoint axis0(&ax0_encoder, ax0_encoder_offset, -270, 270, 2125);  // Angle limits for ax0 not set
 ArmJoint axis1(&ax1_encoder, ax1_encoder_offset, -60, 115, 5000);
-ArmJoint axis2(&ax2_encoder, ax2_encoder_offset, -120, 120, 3750);
+ArmJoint axis2(&ax2_encoder, ax2_encoder_offset, -115, 115, 3750);
 ArmJoint axis3(&ax3_encoder, ax3_encoder_offset, -95, 110, 2500);
 ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
@@ -379,7 +379,7 @@ void loop() {
                 speeds[1] = canData[1] * 0.75;
                 speeds[2] = canData[2] * 0.5;
                 speeds[3] = canData[3] * 0.5;
-                arm.runDuty(speeds[0], speeds[1], speeds[2], speeds[3]);
+                arm.runDuty(speeds);
             }
         }
     }
@@ -491,7 +491,7 @@ void loop() {
             Serial.println("| Main MCU Serial ctrl cmd recieved                    |");
 #endif
             lastCtrlCmd = millis();
-            COMMS_UART.println(command);
+            COMMS_UART.println(input);
         }
 
         else if (args[0] == "IKA") // Set the target angle for IK
