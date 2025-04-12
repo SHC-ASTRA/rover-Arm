@@ -41,6 +41,11 @@
 #define ax2_encoder_offset 352
 #define ax3_encoder_offset 55
 
+#define PIN_VDIV_BATT 39
+#define PIN_VDIV_12V 36
+#define PIN_VDIV_5V 34
+#define PIN_VDIV_3V3 35
+
 
 //---------------------//
 //  Component classes  //
@@ -65,6 +70,7 @@ bool ledState = false;
 const uint16_t StepPeriodUs = 2000;
 
 unsigned long lastFeedback = 0;
+unsigned long lastVoltRead = 0;
 unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
 unsigned long lastEncoderRead = 0;
@@ -233,10 +239,14 @@ void loop() {
         sd.step();
     }
 
-    if (millis() - lastFeedback >= 2000)
-    {
-        
-        lastFeedback = millis();
+    if (millis() - lastVoltRead > 1000) {
+        lastVoltRead = millis();
+        float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
+        float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
+        float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
+        float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 1.1);
+
+        vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
     }
 
     if (millis() - lastEncoderRead >= 250)
