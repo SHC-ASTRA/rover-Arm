@@ -243,6 +243,7 @@ void loop() {
         float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 1.1);
 
         vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
+    }
 
     if (millis() - lastFeedback >= 500)
     {
