@@ -360,10 +360,10 @@ void loop() {
 #endif
                 lastCtrlCmd = millis();
                 float speeds[4] = {0};
-                speeds[0] = canData[0] == 0 ? 0 : canData[0] / 100.0;
-                speeds[1] = canData[1] == 0 ? 0 : canData[1] / 100.0;
-                speeds[2] = canData[2] == 0 ? 0 : canData[2] / 100.0;
-                speeds[3] = canData[3] == 0 ? 0 : canData[3] / 100.0;
+                speeds[0] = canData[0] * 0.5;
+                speeds[1] = canData[1] * 0.75;
+                speeds[2] = canData[2] * 0.5;
+                speeds[3] = canData[3] * 0.5;
                 arm.runDuty(speeds[0], speeds[1], speeds[2], speeds[3]);
             }
         }
