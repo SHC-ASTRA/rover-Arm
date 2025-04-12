@@ -42,6 +42,11 @@
 #define ax2_encoder_offset 352
 #define ax3_encoder_offset 55
 
+#define PIN_VDIV_BATT 39
+#define PIN_VDIV_12V 36
+#define PIN_VDIV_5V 34
+#define PIN_VDIV_3V3 35
+
 
 //---------------------//
 //  Component classes  //
@@ -73,6 +78,7 @@ bool ledState = false;
 const uint16_t StepPeriodUs = 2000;
 
 unsigned long lastFeedback = 0;
+unsigned long lastVoltRead = 0;
 // unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
 
@@ -229,6 +235,15 @@ void loop() {
     //     sd.step();
     // }
 
+    if (millis() - lastVoltRead > 1000) {
+        lastVoltRead = millis();
+        float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
+        float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
+        float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
+        float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 1.1);
+
+        vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
+
     if (millis() - lastFeedback >= 500)
     {
         lastFeedback = millis();
@@ -256,7 +271,6 @@ void loop() {
         lastIKUpdate = millis();
         arm.updateIKMotion();
     }
-
 
     //------------------//
     //  CAN Input  //
@@ -507,6 +521,8 @@ void loop() {
     {
         String input = COMMS_UART.readStringUntil('\n');
         input.trim();
+        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
+        parseInput(input, args, ',');   // Separate `input` by commas and place into args vector
 
 #ifdef ARM_DEBUG
         Serial.println("|------------------------------------------------------|");
@@ -514,6 +530,10 @@ void loop() {
 #endif
         Serial.print("Motor MCU:\t");
         Serial.println(input);
+
+        if (checkArgs(args, 4) && args[0] == "motorstatus") {
+            vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(), args[4].toInt());
+        }
     }
 }
 

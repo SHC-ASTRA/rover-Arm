@@ -192,9 +192,8 @@ void loop() {
         Stop();
     }
 
-    // Motor status debug printout
-#if defined(DEBUG2)
-    if (millis() - lastMotorStatus > 500) {
+    // Motor status
+    if (millis() - lastMotorStatus > 500) { 
         lastMotorStatus = millis();
 
         for (int i = 0; i < 3; i++) {
@@ -204,7 +203,6 @@ void loop() {
                 int(motorList[i]->status1.busVoltage * 10), int(motorList[i]->status1.outputCurrent * 10));
         }
     }
-#endif
 
 
     //-------------//
