@@ -60,6 +60,8 @@ bool isWristYawIK = false;  // Is IK controlling yaw now?
 int wristYawIKGoal = 0;  // degrees; Goal for wristYaw from IK
 int timeToGoal = 0;  // ms
 
+unsigned long lastFeedback = 0;  // ms
+
 
 //--------------//
 //  Prototypes  //
@@ -184,6 +186,11 @@ void loop() {
 #ifdef DEBUG
         Serial.println("Safety timeout");
 #endif
+    }
+
+    if (millis() - lastFeedback > 500) {
+        lastFeedback = millis();
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES, wristYaw);  // Currently just 0
     }
 
     // EF motor controller fault monitor

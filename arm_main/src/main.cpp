@@ -229,7 +229,7 @@ void loop() {
     //     sd.step();
     // }
 
-    if (millis() - lastFeedback >= 1000)
+    if (millis() - lastFeedback >= 500)
     {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
