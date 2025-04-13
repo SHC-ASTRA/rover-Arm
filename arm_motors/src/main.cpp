@@ -63,13 +63,8 @@ uint32_t lastAccel = 0;
 //  Prototypes  //
 //--------------//
 
-bool setAxisDeg(int axis, int degrees, int timeout, bool rel_abs);  // set what degree the axis is trying to go to
-void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed);    // set speed at which an axis moves
 void Brake(bool enable);
 void Stop();
-// TODO: These two functions really seem like the same thing...
-void updateMotorStatus();
-void motorFeedback();
 
 
 //------------------------------------------------------------------------------------------------//
@@ -265,8 +260,6 @@ void loop() {
         Serial1.println(input);
         Serial.println(input);
 
-        String prevCommand;
-
         //--------//
         //  Misc  //
         //--------//
@@ -293,13 +286,9 @@ void loop() {
         else if (args[0] == "ctrl")
         {   
             lastCtrlCmd = millis();
-            if (input != prevCommand)
-            {
-                prevCommand = input;
-
-                setAxisSpeeds(args[1].toFloat(), args[2].toFloat(), args[3].toFloat());
-                // COMMS_UART.println("Motors Received Ctrl Command");
-            }
+            motorList[0]->sendDuty(args[0].toFloat());
+            motorList[1]->sendDuty(args[1].toFloat());
+            motorList[2]->sendDuty(args[2].toFloat());
         }
 
         else if (args[0] == "safetyoff")
@@ -356,14 +345,6 @@ void loop() {
 //                                                    //
 //----------------------------------------------------//
 
-void setAxisSpeeds(float A1Speed, float A2Speed, float A3Speed)
-{
-    // COMMS_UART.println("Setting Motor Speeds");
-    motorList[0]->setDuty(A1Speed);
-    motorList[1]->setDuty(A2Speed);
-    motorList[2]->setDuty(A3Speed);
-}
-
 // Enables or disables brake mode for all motors
 void Brake(bool enable) {
     for (int i = 0; i < MOTOR_AMOUNT; i++)
@@ -375,30 +356,5 @@ void Stop()
 {
     for (int i = 0; i < MOTOR_AMOUNT; i++) {
         motorList[i]->stop();
-    }
-}
-
-void updateMotorStatus()
-{
-    for (int i = 1; i < 4; i++) {
-        String dataOut = "";
-        dataOut += String(39)+",";
-        dataOut += String(i)+","; 
-        dataOut += String(motorList[i]->status1.motorTemperature*10)+",";
-        dataOut += String(static_cast<int>(motorList[i]->status1.busVoltage*10))+",";
-        dataOut += String(static_cast<int>(motorList[i]->status1.outputCurrent*10));
-        COMMS_UART.println(dataOut);
-    }
-}
-
-void motorFeedback()
-{
-    for (int i = 1; i < MOTOR_AMOUNT; i++)
-    { 
-        String motor_feedback = 39+","+i+',';
-        motor_feedback += motorList[i]->status1.busVoltage*10+',';
-        motor_feedback += motorList[i]->status1.outputCurrent*10+',';
-        motor_feedback += motorList[i]->status1.motorTemperature*10;
-        COMMS_UART.println(motor_feedback);
     }
 }
