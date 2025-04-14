@@ -58,7 +58,6 @@ int heartBeatNum = 1;
 
 unsigned long lastCtrlCmd = 0;
 unsigned long lastMotorStatus = 0;
-unsigned long lastMotorFeedback = 0;
 bool safetyOn = true;
 
 uint32_t lastAccel = 0;
@@ -177,12 +176,6 @@ void loop() {
         }
     }
 
-    if (millis() - lastMotorFeedback >= 2000) // Change to 1000?
-    {
-        lastMotorFeedback = millis();
-        // motorFeedback();
-    }
-
     // Safety timeout
     if (safetyOn && millis() - lastCtrlCmd > 2000)
     {
@@ -199,7 +192,7 @@ void loop() {
         for (int i = 0; i < MOTOR_AMOUNT; i++) {
             if (millis() - motorList[i]->status1.timestamp > 500)  // Don't send outdated data
                 continue;
-            Serial.printf("motorstatus,%d,%d,%d,%d\n", motorList[i]->getID(), int(motorList[i]->status1.motorTemperature * 10),
+            COMMS_UART.printf("motorstatus,%d,%d,%d,%d\n", motorList[i]->getID(), int(motorList[i]->status1.motorTemperature * 10),
                 int(motorList[i]->status1.busVoltage * 10), int(motorList[i]->status1.outputCurrent * 10));
         }
     }
