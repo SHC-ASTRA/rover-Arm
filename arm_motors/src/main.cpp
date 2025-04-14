@@ -28,17 +28,22 @@
 #    define COMMS_UART Serial
 #endif
 
+#define MOTOR_ID_A0 4  // To be set
+
+#define MOTOR_AMOUNT 4
+
 
 //---------------------//
 //  Component classes  //
 //---------------------//
 
 // AstraMotors(int setMotorID, int setCtrlMode, bool inv, int setMaxSpeed, float setMaxDuty)
+AstraMotors MotorAxis0(MOTOR_ID_A0, sparkMax_ctrlType::kDutyCycle, true);
 AstraMotors MotorAxis1(MOTOR_ID_A1, sparkMax_ctrlType::kDutyCycle, true);
 AstraMotors MotorAxis2(MOTOR_ID_A2, sparkMax_ctrlType::kDutyCycle, true);
 AstraMotors MotorAxis3(MOTOR_ID_A3, sparkMax_ctrlType::kDutyCycle, true);
 
-AstraMotors* motorList[] = {&MotorAxis1, &MotorAxis2, &MotorAxis3};
+AstraMotors* motorList[] = {&MotorAxis0, &MotorAxis1, &MotorAxis2, &MotorAxis3};
 
 
 //----------//
@@ -191,7 +196,7 @@ void loop() {
     if (millis() - lastMotorStatus > 500) { 
         lastMotorStatus = millis();
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < MOTOR_AMOUNT; i++) {
             if (millis() - motorList[i]->status1.timestamp > 500)  // Don't send outdated data
                 continue;
             Serial.printf("motorstatus,%d,%d,%d,%d\n", motorList[i]->getID(), int(motorList[i]->status1.motorTemperature * 10),
@@ -217,7 +222,7 @@ void loop() {
 #endif
 
         if ((apiId & 0x60) == 0x60) {  // Periodic status
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < MOTOR_AMOUNT; i++) {
                 if (deviceId == motorList[i]->getID()) {
                     motorList[i]->parseStatus(apiId, rxFrame.data);
                     break;
@@ -286,9 +291,10 @@ void loop() {
         else if (args[0] == "ctrl")
         {   
             lastCtrlCmd = millis();
-            motorList[0]->sendDuty(args[0].toFloat());
-            motorList[1]->sendDuty(args[1].toFloat());
-            motorList[2]->sendDuty(args[2].toFloat());
+            motorList[0]->sendDuty(args[1].toFloat());
+            motorList[1]->sendDuty(args[2].toFloat());
+            motorList[2]->sendDuty(args[3].toFloat());
+            motorList[3]->sendDuty(args[4].toFloat());
         }
 
         else if (args[0] == "safetyoff")

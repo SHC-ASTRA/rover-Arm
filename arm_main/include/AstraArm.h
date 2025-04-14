@@ -18,8 +18,7 @@ class AstraArm {
     bool isIKMode;
     float lastDutyCycles[4];
     inline void sendDuty(float duty0, float duty1, float duty2, float duty3) {
-        // MOTORSERIAL.printf("ctrl,%f,%f,%f,%f\n", duty0, duty1, duty2, duty3);
-        MOTORSERIAL.printf("ctrl,%f,%f,%f\n", duty1, duty2, duty3);
+        MOTORSERIAL.printf("ctrl,%f,%f,%f,%f\n", duty0, duty1, duty2, duty3);
         lastDutyCycles[0] = duty0;
         lastDutyCycles[1] = duty1;
         lastDutyCycles[2] = duty2;
