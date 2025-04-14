@@ -3,7 +3,7 @@
  * @author Charles Marmann (cmm0077@uah.edu)
  * @author Jack Schumacher (js0342@uah.edu)
  * @author Tristan McGinnis (tlm0047@uah.edu)
- * @brief Arm Embedded
+ * @brief Arm Embedded Main MCU
  *
  */
 
@@ -15,14 +15,14 @@
 #include <cmath>
 
 #include <SPI.h>
-#include <HighPowerStepperDriver.h>
+// #include <HighPowerStepperDriver.h>
 #include "AS5047P.h"
 
 // Our own resources
 
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
-#include "project/ARM.h"
+#include "ArmMainMCU.h"
 #include "AstraArm.h"
 
 
@@ -37,16 +37,6 @@
 
 #define SPI_BUS_SPEED 1000000 // 1MHz
 
-#define ax0_encoder_offset 140
-#define ax1_encoder_offset 55
-#define ax2_encoder_offset 352
-#define ax3_encoder_offset 55
-
-#define PIN_VDIV_BATT 39
-#define PIN_VDIV_12V 36
-#define PIN_VDIV_5V 34
-#define PIN_VDIV_3V3 35
-
 
 //---------------------//
 //  Component classes  //
@@ -59,10 +49,10 @@ AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED);
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED); 
 AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 
-ArmJoint axis0(&ax0_encoder, ax0_encoder_offset, -135, 135, 2125);  // Angle limits for ax0 not set
-ArmJoint axis1(&ax1_encoder, ax1_encoder_offset, -60, 90, 5000);
-ArmJoint axis2(&ax2_encoder, ax2_encoder_offset, -115, 115, 3750);
-ArmJoint axis3(&ax3_encoder, ax3_encoder_offset, -90, 110, 2500);
+ArmJoint axis0(&ax0_encoder, 140, -135, 135, 2125);  // Angle limits for ax0 not set
+ArmJoint axis1(&ax1_encoder, 55, -60, 90, 5000);
+ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
+ArmJoint axis3(&ax3_encoder, 55, -90, 110, 2500);
 ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
 AstraArm arm(joints);

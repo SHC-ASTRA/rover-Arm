@@ -17,18 +17,23 @@
 #include "AstraMisc.h"
 #include "AstraREVCAN.h"
 #include "AstraMotors.h"
-#include "project/ARM.h"
+#include "ArmMotorMCU.h"
 
 
 //------------//
 //  Settings  //
 //------------//
 
-#ifdef DEBUG
-#    define COMMS_UART Serial
+#if !defined(DEBUG)
+#    define COMMS_UART Serial1  // To/from Main MCU
+#else
+#    define COMMS_UART Serial  // To/from USB for debugging
 #endif
 
 #define MOTOR_ID_A0 4  // To be set
+#define MOTOR_ID_A1 1
+#define MOTOR_ID_A2 2
+#define MOTOR_ID_A3 3
 
 #define MOTOR_AMOUNT 4
 
