@@ -61,6 +61,7 @@ int wristYawIKGoal = 0;  // degrees; Goal for wristYaw from IK
 int timeToGoal = 0;  // ms
 
 unsigned long lastFeedback = 0;  // ms
+unsigned long lastVoltRead = 0;
 
 
 //--------------//
@@ -191,6 +192,15 @@ void loop() {
     if (millis() - lastFeedback > 500) {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, wristYaw);  // Currently just 0
+    }
+
+    if (millis() - lastVoltRead > 1000) {
+        lastVoltRead = millis();
+        float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
+        float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
+        float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
+
+        vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100);
     }
 
     // EF motor controller fault monitor

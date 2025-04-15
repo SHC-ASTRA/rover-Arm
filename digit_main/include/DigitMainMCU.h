@@ -33,9 +33,9 @@
 
 // ADC
 
-#   define ADC_5V 35
-#   define ADC_12V 36
-#   define ADC_VBATT 39
+#   define PIN_VDIV_5V 35
+#   define PIN_VDIV_12V 36
+#   define PIN_VDIV_BATT 39
 
 // FAERIE
 
@@ -76,9 +76,9 @@
 
 // ADC
 
-#   define ADC_5V 34
-#   define ADC_12V 39
-#   define ADC_VBATT 36
+#   define PIN_VDIV_5V 34
+#   define PIN_VDIV_12V 39
+#   define PIN_VDIV_BATT 36
 
 // Misc
 
