@@ -15,7 +15,7 @@
 
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
-#include "project/DIGIT.h"
+#include "DigitMainMCU.h"
 
 
 //------------//
@@ -27,16 +27,16 @@
 
 #define LSS_GEAR_RATIO 3
 
-#define LSS_SERIAL	(Serial1)
-#define LSS_BAUD	(LSS_DefaultBaud)
+#define LSS_TOP_ID 1
+#define LSS_BOTTOM_ID 2
 
 
 //---------------------//
 //  Component classes  //
 //---------------------//
 
-LSS topLSS = LSS(1);
-LSS bottomLSS = LSS(2);
+LSS topLSS = LSS(LSS_TOP_ID);
+LSS bottomLSS = LSS(LSS_BOTTOM_ID);
 
 
 //----------//
