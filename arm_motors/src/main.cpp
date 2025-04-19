@@ -172,8 +172,8 @@ void loop() {
     // Heartbeat for REV motors
     if (millis() - lastHB >= 3)
     {
-        sendHeartbeat(ESP32Can, heartBeatNum);
         lastHB = millis();
+        CAN_sendHeartbeat(heartBeatNum);
         heartBeatNum++;
         if (heartBeatNum > 4)
         {
