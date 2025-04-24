@@ -16,7 +16,6 @@
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
 #include "DigitMainMCU.h"
-#include "AstraNP.h"
 
 
 //------------//
@@ -38,8 +37,6 @@
 
 LSS topLSS = LSS(LSS_TOP_ID);
 LSS bottomLSS = LSS(LSS_BOTTOM_ID);
-
-AstraNeoPixel np(PIN_NEOPIXEL);
 
 
 //----------//
@@ -65,7 +62,6 @@ int timeToGoal = 0;  // ms
 
 unsigned long lastFeedback = 0;  // ms
 unsigned long lastVoltRead = 0;
-long lastNP = 0;
 
 
 //--------------//
@@ -124,16 +120,12 @@ void setup() {
     //  Communications  //
     //------------------//
 
-    np.writeColor(COLOR_SETUP_COMMS);
-
     Serial.begin(SERIAL_BAUD);
 
     if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX))
         Serial.println("CAN bus started!");
-    else {
+    else
         Serial.println("CAN bus failed!");
-        np.addStatus(STATUS_CAN_NOCONN, 30);
-    }
 
 
     //-----------//
@@ -144,8 +136,6 @@ void setup() {
     //--------------------//
     //  Misc. Components  //
     //--------------------//
-    
-    np.writeColor(COLOR_SETUP_MISC);
 
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
 
@@ -159,8 +149,6 @@ void setup() {
 
     // Wait for LSS reboot
     delay(2000);
-
-    np.writeColor(COLOR_SETUP_DONE);
 }
 
 
@@ -191,11 +179,6 @@ void loop() {
         digitalWrite(LED_BUILTIN, ledState);
     }
 #endif
-
-    if (millis() - lastNP > 100) {
-        lastNP = millis();
-        np.update();
-    }
 
     // Motor control safety timeout
     if (millis() - lastCtrlCmd > 2000) {
