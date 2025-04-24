@@ -15,7 +15,7 @@
 
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
-#include "project/DIGIT.h"
+#include "DigitMainMCU.h"
 
 
 //------------//
@@ -27,16 +27,16 @@
 
 #define LSS_GEAR_RATIO 3
 
-#define LSS_SERIAL	(Serial1)
-#define LSS_BAUD	(LSS_DefaultBaud)
+#define LSS_TOP_ID 1
+#define LSS_BOTTOM_ID 2
 
 
 //---------------------//
 //  Component classes  //
 //---------------------//
 
-LSS topLSS = LSS(1);
-LSS bottomLSS = LSS(2);
+LSS topLSS = LSS(LSS_TOP_ID);
+LSS bottomLSS = LSS(LSS_BOTTOM_ID);
 
 
 //----------//
@@ -59,6 +59,9 @@ int wristRollDir = 0;
 bool isWristYawIK = false;  // Is IK controlling yaw now?
 int wristYawIKGoal = 0;  // degrees; Goal for wristYaw from IK
 int timeToGoal = 0;  // ms
+
+unsigned long lastFeedback = 0;  // ms
+unsigned long lastVoltRead = 0;
 
 
 //--------------//
@@ -184,6 +187,20 @@ void loop() {
 #ifdef DEBUG
         Serial.println("Safety timeout");
 #endif
+    }
+
+    if (millis() - lastFeedback > 500) {
+        lastFeedback = millis();
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES, wristYaw);  // Currently just 0
+    }
+
+    if (millis() - lastVoltRead > 1000) {
+        lastVoltRead = millis();
+        float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
+        float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
+        float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
+
+        vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100);
     }
 
     // EF motor controller fault monitor
@@ -353,7 +370,7 @@ void loop() {
 
         input.trim();                   // Remove preceding and trailing whitespace
         std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
-        parseInput(input, args, ',');   // Separate `input` by commas and place into args vector
+        parseInput(input, args);   // Separate `input` by commas and place into args vector
         args[0].toLowerCase();          // Make command case-insensitive
         String command = args[0];       // To make processing code more readable
 
@@ -390,6 +407,14 @@ void loop() {
 
         else if (command == "can_relay_tovic") {
             vicCAN.relayFromSerial(args);
+        }
+
+        else if (args[0] == "can_relay_mode") {
+            if (args[1] == "on") {
+                vicCAN.relayOn();
+            } else if (args[1] == "off") {
+                vicCAN.relayOff();
+            }
         }
 
         //-----------//

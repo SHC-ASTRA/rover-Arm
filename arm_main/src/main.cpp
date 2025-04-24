@@ -3,7 +3,7 @@
  * @author Charles Marmann (cmm0077@uah.edu)
  * @author Jack Schumacher (js0342@uah.edu)
  * @author Tristan McGinnis (tlm0047@uah.edu)
- * @brief Arm Embedded
+ * @brief Arm Embedded Main MCU
  *
  */
 
@@ -15,14 +15,15 @@
 #include <cmath>
 
 #include <SPI.h>
-#include <HighPowerStepperDriver.h>
+// #include <HighPowerStepperDriver.h>
 #include "AS5047P.h"
 
 // Our own resources
 
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
-#include "project/ARM.h"
+#include "ArmMainMCU.h"
+#include "AstraArm.h"
 
 
 //------------//
@@ -36,23 +37,25 @@
 
 #define SPI_BUS_SPEED 1000000 // 1MHz
 
-#define ax0_encoder_offset 140
-#define ax1_encoder_offset 55
-#define ax2_encoder_offset 352
-#define ax3_encoder_offset 55
-
 
 //---------------------//
 //  Component classes  //
 //---------------------//
 
-HighPowerStepperDriver sd;
+// HighPowerStepperDriver sd;
 
 AS5047P ax0_encoder(ENCODER_AXIS0_PIN, SPI_BUS_SPEED); 
 AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED); 
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED); 
-AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED); 
-auto errorInfo = AS5047P_Types::ERROR_t();
+AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
+
+ArmJoint axis0(&ax0_encoder, 140, -135, 135, 2125);  // Angle limits for ax0 not set
+ArmJoint axis1(&ax1_encoder, 55, -60, 90, 5000);
+ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
+ArmJoint axis3(&ax3_encoder, 55, -90, 110, 2500);
+ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
+
+AstraArm arm(joints);
 
 
 //----------//
@@ -65,32 +68,21 @@ bool ledState = false;
 const uint16_t StepPeriodUs = 2000;
 
 unsigned long lastFeedback = 0;
-unsigned long lastMotorStep = 0;
+unsigned long lastVoltRead = 0;
+// unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
-unsigned long lastEncoderRead = 0;
-unsigned long lastEncoderOutput = 0;
-double AX0Speed = 0;
-bool AX0En = false;
 
-unsigned int goalTime;
+unsigned long lastIKUpdate = 0;
 
-bool AxisComplete    [] = {true,true,true,true};     // AxisXComplete    where x = 1..3
-int  AxisSetPosition [] = {0,0,0,0};              // AxisXSetPosition ^^^
-int  AxisPosition    [] = {0,0,0,0};              // AxisXPosition    ^^^
+// double AX0Speed = 0;
+// bool AX0En = false;
 
 
 //--------------//
 //  Prototypes  //
 //--------------//
 
-void outputEncoders();
-int adjustEncoderValue(int encoderValue, int offset);
-
-void safety_timeout();
-void findSpeedandTime(int time);
-void convertToDutyCycle(double& dpsSpeed, float gearRatio);
-void convertToDutyCycleA0(double& dpsSpeed, float gearRatio);
-void updateMotorState();
+// void updateMotorState();
 
 
 //------------------------------------------------------------------------------------------------//
@@ -146,27 +138,27 @@ void setup()
     //  Stepper Motor  //
     //-----------------//
 
-    sd.setChipSelectPin(AX0_CS);
+    // sd.setChipSelectPin(AX0_CS);
 
     delay(1);
     
-    sd.resetSettings();
-    sd.clearStatus();
+    // sd.resetSettings();
+    // sd.clearStatus();
 
-    // Select auto mixed decay.  TI's DRV8711 documentation recommends this mode
-    // for most applications, and we find that it usually works well.
-    sd.setDecayMode(HPSDDecayMode::AutoMixed);
+    // // Select auto mixed decay.  TI's DRV8711 documentation recommends this mode
+    // // for most applications, and we find that it usually works well.
+    // sd.setDecayMode(HPSDDecayMode::AutoMixed);
 
-    // Set the current limit. You should change the number here to an appropriate
-    // value for your particular system.  If you are using a 36v8 board, call
-    // setCurrentMilliamps36v8 instead.
-    sd.setCurrentMilliamps36v4(1000);
+    // // Set the current limit. You should change the number here to an appropriate
+    // // value for your particular system.  If you are using a 36v8 board, call
+    // // setCurrentMilliamps36v8 instead.
+    // sd.setCurrentMilliamps36v4(1000);
 
-    // Set the number of microsteps that correspond to one full step.
-    sd.setStepMode(HPSDStepMode::MicroStep2);
+    // // Set the number of microsteps that correspond to one full step.
+    // sd.setStepMode(HPSDStepMode::MicroStep2);
 
-    // Enable the motor outputs.
-    sd.enableDriver();
+    // // Enable the motor outputs.
+    // sd.enableDriver();
 
     //-----------------//
     //  Encoder Setup  //
@@ -227,47 +219,49 @@ void loop() {
     }
 #endif
 
-    if ((millis() - lastMotorStep >= 1) && AX0En)
-    {
-        lastMotorStep = millis();
-        sd.step();
+    // if ((millis() - lastMotorStep >= 1) && AX0En)
+    // {
+    //     lastMotorStep = millis();
+    //     sd.step();
+    // }
+
+    if (millis() - lastVoltRead > 1000) {
+        lastVoltRead = millis();
+        float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
+        float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
+        float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
+        float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 1.1);
+
+        vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
     }
 
-    if (millis() - lastFeedback >= 2000)
+    if (millis() - lastFeedback >= 500)
     {
-        
         lastFeedback = millis();
-    }
-
-    if (millis() - lastEncoderRead >= 250)
-    {
-        lastEncoderRead = millis();
-        readEncoders();
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
+#ifdef DEBUG
+        Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
+#endif
     }
 
     // Safety timeout if no ctrl command for 2 seconds
     if (millis() - lastCtrlCmd > 2000)
     {
         lastCtrlCmd = millis();
-        AX0En = 0;
-        COMMS_UART.println("ctrl,0,0,0");
+        arm.stop();
 
 #ifdef ARM_DEBUG
         Serial.println("|------------------------------------------------------|");
         Serial.println("|********************SAFETY TIMEOUT********************|");
 #else
-        Serial.println("No Control / Safety Timeout");
+        Serial.println("Safety timeout");
 #endif
     }
 
-    if ((millis() - lastEncoderOutput >= 500))
-    {
-        lastEncoderOutput = millis();
-        char buffer[50];
-        sprintf(buffer, "AX0: %3d\tAX1: %3d\tAX2: %3d\tAX3: %3d", AxisPosition[0], AxisPosition[1], AxisPosition[2], AxisPosition[3]);
-        Serial.println(buffer);
+    if (millis() - lastIKUpdate > 100) {
+        lastIKUpdate = millis();
+        arm.updateIKMotion();
     }
-
 
     //------------------//
     //  CAN Input  //
@@ -309,7 +303,7 @@ void loop() {
 
         if (commandID == CMD_PING) {
             vicCAN.respond(1);  // "pong"
-            // Serial.println("Received ping over CAN");
+            Serial.println("Received ping over CAN");
         }
         else if (commandID == CMD_B_LED) {
             if (canData.size() == 1) {
@@ -345,10 +339,13 @@ void loop() {
                 Serial.println("|------------------------------------------------------|");
                 Serial.println("| VicCan IK Angle cmd recieved                         |");
 #endif
-                for (int i = 0; i < MOTOR_AMOUNT; i++) 
-                {
-                    AxisSetPosition[i] = canData[i];
-                }
+                lastCtrlCmd = millis();
+                float speeds[4] = {0};
+                speeds[0] = canData[0] == 0 ? 0 : canData[0] / 10.0;
+                speeds[1] = canData[1] == 0 ? 0 : canData[1] / 10.0;
+                speeds[2] = canData[2] == 0 ? 0 : canData[2] / 10.0;
+                speeds[3] = canData[3] == 0 ? 0 : canData[3] / 10.0;
+                arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
             }
         }
         else if (commandID == CMD_ARM_IK_TTG) {
@@ -357,38 +354,22 @@ void loop() {
                 Serial.println("|------------------------------------------------------|");
                 Serial.println("| VicCan IK Time cmd recieved                          |");
 #endif
-                findSpeedandTime(canData[0]);
+                arm.setTTG(canData[0]);
             }
         }
         else if (commandID == CMD_ARM_MANUAL) {
             if (canData.size() == 4) {
-                lastCtrlCmd = millis();
 #ifdef ARM_DEBUG
                 Serial.println("|------------------------------------------------------|");
                 Serial.println("| VicCan ctrl cmd recieved                             |");
 #endif
-
-                float speeds[3];
-                speeds[0] = canData[1] * 0.75;
-                speeds[1] = canData[2] * 0.50;
-                speeds[2] = canData[3] * 0.50;
-
-                COMMS_UART.printf("ctrl,%f,%f,%f\n", speeds[0], speeds[1], speeds[2]);
-
-                if (canData[0] < 0)
-                {
-                    sd.setDirection(TURNRIGHT);
-                    AX0En = true;
-                }
-                else if (canData[0] > 0)
-                {
-                    sd.setDirection(TURNLEFT);
-                    AX0En = true;
-                }
-                else
-                {
-                    AX0En = false;
-                }
+                lastCtrlCmd = millis();
+                float speeds[4] = {0};
+                speeds[0] = canData[0] * 0.5;
+                speeds[1] = canData[1] * 0.75;
+                speeds[2] = canData[2] * 0.5;
+                speeds[3] = canData[3] * 0.5;
+                arm.runDuty(speeds);
             }
         }
     }
@@ -415,7 +396,7 @@ void loop() {
 
         input.trim();                   // Remove preceding and trailing whitespace
         std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
-        parseInput(input, args, ',');   // Separate `input` by commas and place into args vector
+        parseInput(input, args);   // Separate `input` by commas and place into args vector
         args[0].toLowerCase();          // Make command case-insensitive
         String command = args[0];       // To make processing code more readable
 
@@ -468,7 +449,9 @@ void loop() {
         else if (args[0] == "can_relay_tovic")
         {
             vicCAN.relayFromSerial(args);
+#ifdef DEBUG
             Serial.println("Got Relay Command");
+#endif
         }
 
         else if (args[0] == "can_relay_mode") {
@@ -479,50 +462,35 @@ void loop() {
             }
         }
 
+        else if (args[0] == "effangles") {
+            Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
+        }
+
+        else if (args[0] == "stop") {
+            arm.stop();
+        }
+
         //------------//
         //  Physical  //
         //------------//
 
         else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
         {
-            float speeds[3];
-            speeds[0] = args[2].toFloat() * 0.1;
-            speeds[1] = args[3].toFloat() * 0.1;
-            speeds[2] = args[4].toFloat() * 0.1;
-            String command = "ctrl," + String(speeds[0]) + ',' + String(speeds[1]) + ',' + String(speeds[2]);
-
 #ifdef ARM_DEBUG
             Serial.println("|------------------------------------------------------|");
             Serial.println("| Main MCU Serial ctrl cmd recieved                    |");
 #endif
-
-            COMMS_UART.println(command);
-
-            // AX0Speed = abs(args[1].toFloat()) * 10;
-            if (args[1].toFloat() < 0)
-            {
-                sd.setDirection(TURNRIGHT);
-            }
-            else
-            {
-                sd.setDirection(TURNLEFT);
-            }
-            AX0En = true;
             lastCtrlCmd = millis();
+            COMMS_UART.println(input);
         }
 
         else if (args[0] == "IKA") // Set the target angle for IK
         {
-
 #ifdef ARM_DEBUG
             Serial.println("|------------------------------------------------------|");
             Serial.println("| Serial IK Angle cmd recieved                         |");
 #endif
 
-            for (int i = 0; i < MOTOR_AMOUNT; i++) 
-            {
-                AxisSetPosition[i] = args[i + 1].toFloat();
-            }
             lastCtrlCmd = millis();
         }
 
@@ -534,7 +502,7 @@ void loop() {
             Serial.println("| Serial IK Time cmd recieved                          |");
 #endif
 
-            findSpeedandTime(args[1].toFloat());
+            // findSpeedandTime(args[1].toFloat());
             lastCtrlCmd = millis();
         }
     }
@@ -544,12 +512,19 @@ void loop() {
     {
         String input = COMMS_UART.readStringUntil('\n');
         input.trim();
+        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
+        parseInput(input, args);   // Separate `input` by commas and place into args vector
 
 #ifdef ARM_DEBUG
         Serial.println("|------------------------------------------------------|");
         Serial.print("| From Motor MCU Recieved: ");
 #endif
+        Serial.print("Motor MCU:\t");
         Serial.println(input);
+
+        if (checkArgs(args, 4) && args[0] == "motorstatus") {
+            vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(), args[4].toInt());
+        }
     }
 }
 
@@ -571,91 +546,73 @@ void loop() {
 //                                                    //
 //----------------------------------------------------//
 
-int adjustEncoderValue(int encoderValue, int offset) {
-    int adjustedValue = encoderValue - offset;
-    if (adjustedValue < 0) {
-        adjustedValue += 360; // Wrap around at 360 degrees
-    }
-    return adjustedValue % 360; // Ensure the value is within 0-359 range
-}
 
+// void findSpeedandTime(int time)               // Based on how long it will take for axis 0 to get to target location
+// {
+//     double setSpeed[MOTOR_AMOUNT];
+//     // Figure out the degrees per second
+//     readEncoders();
+//     for (int i = 0; i < MOTOR_AMOUNT; i++)
+//     {
+//         setSpeed[i] = abs(AxisPosition[i] - AxisSetPosition[i])/time;
+//     }
 
-void readEncoders()
-{
-    AxisPosition[0] = adjustEncoderValue(round(ax0_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax0_encoder_offset);
-    AxisPosition[1] = adjustEncoderValue(round(ax1_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax1_encoder_offset);
-    AxisPosition[2] = adjustEncoderValue(round(ax2_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax2_encoder_offset);
-    AxisPosition[3] = adjustEncoderValue(round(ax3_encoder.readAngleDegree(true, &errorInfo, true, true, true)), ax3_encoder_offset);
-}
+//     convertToDutyCycleA0(setSpeed[0], 7.0625);
+//     convertToDutyCycle(setSpeed[1], 5000);
+//     convertToDutyCycle(setSpeed[2], 3750);
+//     convertToDutyCycle(setSpeed[3], 2500);
 
+//     // Send the ctrl, speed, speed, speed command here
+//     COMMS_UART.printf("ctrl,%i,%i,%i\n", setSpeed[1], setSpeed[2], setSpeed[3]);
+// }
 
-// TODO: Needs to be complete- needs to get time to target and target angles per joint- how fast does the joint need to move
-void findSpeedandTime(int time)               // Based on how long it will take for axis 0 to get to target location
-{
-    double setSpeed[MOTOR_AMOUNT];
-    // Figure out the degrees per second
-    readEncoders();
-    for (int i = 0; i < MOTOR_AMOUNT; i++)
-    {
-        setSpeed[i] = abs(AxisPosition[i] - AxisSetPosition[i])/time;
-    }
+// // Pass by reference because it's easier
+// void convertToDutyCycle(double& dpsSpeed, float gearRatio)
+// {
+//     dpsSpeed = (dpsSpeed*gearRatio)/11000; // Retarded solution, should be changed
+// }
 
-    convertToDutyCycleA0(setSpeed[0], 7.0625);
-    convertToDutyCycle(setSpeed[1], 5000);
-    convertToDutyCycle(setSpeed[2], 3750);
-    convertToDutyCycle(setSpeed[3], 2500);
-
-    // Send the ctrl, speed, speed, speed command here
-    COMMS_UART.printf("ctrl,%i,%i,%i\n", setSpeed[1], setSpeed[2], setSpeed[3]);
-}
-
-// Pass by reference because it's easier
-void convertToDutyCycle(double& dpsSpeed, float gearRatio)
-{
-    dpsSpeed = (dpsSpeed*gearRatio)/11000; // Retarded solution, should be changed
-}
-
-void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
-{
-    // Steps per millisecond
-    dpsSpeed = (dpsSpeed*gearRatio)*7.63/1000;//0.05388
-    // convert to period
-    dpsSpeed = 1/dpsSpeed;
-#ifdef ARM_DEBUG
-    Serial.println("|------------------------------------------------------|");
-    Serial.print("| AX0 Speed Set To: ");
-    Serial.println(dpsSpeed);
-#endif
+// void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
+// {
+//     // Steps per millisecond
+//     dpsSpeed = (dpsSpeed*gearRatio)*7.63/1000;//0.05388
+//     // convert to period
+//     dpsSpeed = 1/dpsSpeed;
+// #ifdef ARM_DEBUG
+//     Serial.println("|------------------------------------------------------|");
+//     Serial.print("| AX0 Speed Set To: ");
+//     Serial.println(dpsSpeed);
+// #endif
     
-    if (dpsSpeed < 0)
-    {
-        sd.setDirection(TURNRIGHT);
-    }
-    else
-    {
-        sd.setDirection(TURNLEFT);
-    }
-    AX0Speed = dpsSpeed;
-    AX0En = true;
-}
+//     if (dpsSpeed < 0)
+//     {
+//         sd.setDirection(TURNRIGHT);
+//     }
+//     else
+//     {
+//         sd.setDirection(TURNLEFT);
+//     }
+//     AX0Speed = dpsSpeed;
+//     AX0En = true;
+// }
 
-void updateMotorState()
-{
-    for (int i = 0; i < MOTOR_AMOUNT; i++)
-    {
-        if(!AxisComplete[i] && abs(AxisPosition[i] - AxisSetPosition[i]) < 1)
-        {
-            // motorList[i-1]->stop();
-            if (i == 0)
-            {
-                AX0En = false;
-            }
-            else
-            {
-                COMMS_UART.printf("stop,%i\n",i);
-            }
+// void updateMotorState()
+// {
+//     for (int i = 0; i < MOTOR_AMOUNT; i++)
+//     {
+//         if(!AxisComplete[i] && abs(AxisPosition[i] - AxisSetPosition[i]) < 1)
+//         {
+//             // motorList[i-1]->stop();
+//             if (i == 0)
+//             {
+//                 AX0En = false;
+//             }
+//             else
+//             {
+//                 COMMS_UART.printf("stop,%i\n",i);
+//             }
             
-            AxisComplete[i] = true;
-        }
-    } 
-}
+//             AxisComplete[i] = true;
+//         }
+//     } 
+// }
