@@ -16,10 +16,14 @@ AstraArm::AstraArm(ArmJoint* setJoints[4]) {
     for (int i = 0; i < 4; i++) {
         lastDutyCycles[i] = 0;
     }
+    timeToGoal = 5000;  // Default time to goal is 5 seconds
 }
 
 void AstraArm::setTargetAngles(float angle0, float angle1, float angle2, float angle3) {
     isIKMode = true;
+    for (int i = 0; i < 4; i++) {
+        joints[i]->goalTime = long(millis()) + timeToGoal;
+    }
     joints[0]->setTargetAngle(angle0);
     joints[1]->setTargetAngle(angle1);
     joints[2]->setTargetAngle(angle2);
@@ -49,11 +53,11 @@ void AstraArm::updateIKMotion() {
         return;
     }
 
-    float dutycycles[4] = {0};
+    float velocities[4] = {0};
     for (int i = 0; i < 4; i++) {
-        dutycycles[i] = joints[i]->updateIKMotion();
+        velocities[i] = joints[i]->updateIKMotion();
     }
-    sendDuty(dutycycles[0], dutycycles[1], dutycycles[2], dutycycles[3]);
+    sendVelocity(velocities[0], velocities[1], velocities[2], velocities[3]);
 }
 
 void AstraArm::runDuty(float dutyCycles[4]) {

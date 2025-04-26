@@ -159,15 +159,15 @@ void loop() {
             digitalWrite(LED_BUILTIN, LOW);
     }
 
-    // Accelerate motors; update the speed for all motors
-    if (millis() - lastAccel >= 100) 
-    {
-        lastAccel = millis();
-        for (int i = 0; i < MOTOR_AMOUNT; i++) 
-        {
-            motorList[i]->accelerate();
-        }
-    }
+    // // Accelerate motors; update the speed for all motors
+    // if (millis() - lastAccel >= 100) 
+    // {
+    //     lastAccel = millis();
+    //     for (int i = 0; i < MOTOR_AMOUNT; i++) 
+    //     {
+    //         motorList[i]->accelerate();
+    //     }
+    // }
 
     // Heartbeat for REV motors
     if (millis() - lastHB >= 3)
@@ -293,6 +293,14 @@ void loop() {
             motorList[1]->sendDuty(args[2].toFloat());
             motorList[2]->sendDuty(args[3].toFloat());
             motorList[3]->sendDuty(args[4].toFloat());
+        }
+
+        else if (args[0] == "sendvelocity") {
+            lastCtrlCmd = millis();
+            motorList[0]->sendSpeed(args[1].toFloat());
+            motorList[1]->sendSpeed(args[2].toFloat());
+            motorList[2]->sendSpeed(args[3].toFloat());
+            motorList[3]->sendSpeed(args[4].toFloat());
         }
 
         else if (args[0] == "safetyoff")

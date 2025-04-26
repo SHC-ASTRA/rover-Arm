@@ -245,7 +245,7 @@ void loop() {
     }
 
     // Safety timeout if no ctrl command for 2 seconds
-    if (millis() - lastCtrlCmd > 2000)
+    if (millis() - lastCtrlCmd > 10000)
     {
         lastCtrlCmd = millis();
         arm.stop();
@@ -258,7 +258,7 @@ void loop() {
 #endif
     }
 
-    if (millis() - lastIKUpdate > 100) {
+    if (millis() - lastIKUpdate > 50) {
         lastIKUpdate = millis();
         arm.updateIKMotion();
     }

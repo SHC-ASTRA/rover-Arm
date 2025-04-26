@@ -11,9 +11,8 @@
 
 const float PRECISION = 1;
 
-const float SPEED_MULT = 3.0;
-const float MAX_SPEED = 0.75;
-const float MIN_SPEED = 0.2;
+const float MAX_SPEED = 1000;
+const float MIN_SPEED = 50;
 
 /**
  * @brief Clamps angle between -180 and +180 degrees
@@ -34,7 +33,7 @@ class ArmJoint {
     long lastEncoderReadTime;
     float minAngle;
     float maxAngle;
-    int timeToGoal;
+    long goalTime;  // millis() value when the arm should be at its goal
     int gearRatio;
     bool inverted;
     AS5047P* encoder;
@@ -44,9 +43,6 @@ class ArmJoint {
     float readAngle();
     float updateIKMotion();
 
-    inline void setTTG(int ttgMs) {
-        timeToGoal = ttgMs;
-    }
     inline void setTargetAngle(float angle) {
         targetAngle = angle;
         if (targetAngle < minAngle) {
