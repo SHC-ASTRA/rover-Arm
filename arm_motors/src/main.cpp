@@ -67,6 +67,17 @@ bool safetyOn = true;
 
 uint32_t lastAccel = 0;
 
+hw_timer_t *Timer0_Cfg = NULL, *Timer1_Cfg = NULL;
+
+void IRAM_ATTR Timer0_ISR() {
+    CAN_sendHeartbeat(heartBeatNum);
+    heartBeatNum++;
+    if (heartBeatNum > 4)
+    {
+        heartBeatNum = 1;
+    }
+}
+
 
 //--------------//
 //  Prototypes  //
@@ -124,6 +135,11 @@ void setup() {
     //--------------------//
     //  Misc. Components  //
     //--------------------//
+
+    Timer0_Cfg = timerBegin(0, 80, true);
+    timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
+    timerAlarmWrite(Timer0_Cfg, 5000, true);
+    timerAlarmEnable(Timer0_Cfg);
 }
 
 
@@ -169,17 +185,7 @@ void loop() {
         }
     }
 
-    // Heartbeat for REV motors
-    if (millis() - lastHB >= 3)
-    {
-        lastHB = millis();
-        CAN_sendHeartbeat(heartBeatNum);
-        heartBeatNum++;
-        if (heartBeatNum > 4)
-        {
-            heartBeatNum = 1;
-        }
-    }
+    // Heartbeat moved to interrupt timer
 
     // Safety timeout
     if (safetyOn && millis() - lastCtrlCmd > 2000)
