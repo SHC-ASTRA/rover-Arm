@@ -32,19 +32,27 @@ float ArmJoint::readAngle() {
     return lastEffectiveAngle;
 }
 
-float ArmJoint::pid() {
-    float delta = clamp_angle(targetAngle - lastEffectiveAngle);
-    if (abs(delta) < PRECISION)
+double ArmJoint::pid(double pTargetAngle) {
+    double error = clamp_angle(pTargetAngle - lastEffectiveAngle);
+    if (abs(error) < PRECISION)
         return 0;  // Stop if +/- 1 degree
+    
+    error = (error / 160.0) * static_cast<double>(gearRatio);  // Convert to motor rotations from gearbox degrees
 
-    const double degPerSec = delta / (double(goalTime - long(millis())) / 1000.0);  // After gearbox
-    double motorRPM = (degPerSec * 60.0 / 360.0) * double(gearRatio);  // Before gearbox
+    integral += error * (dt / 1000.0);
+    double derivative = (error - prevError) / (dt / 1000.0);
+    prevError = error;
 
-    return motorRPM;
+    return kP * error + kI * integral + kD * derivative;
+
+    // const double degPerSec = error / (double(goalTime - long(millis())) / 1000.0);  // After gearbox
+    // double motorRPM = (degPerSec * 60.0 / 360.0) * double(gearRatio);  // Before gearbox
 }
 
 float ArmJoint::updateIKMotion() {
-    float motorRPM = pid();
+    double pidTargetAngle = targetAngle;  // Will come from S-curve
+
+    float motorRPM = pid(targetAngle);
     if (motorRPM == 0) {
         return 0;
     }

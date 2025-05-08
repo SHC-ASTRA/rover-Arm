@@ -22,6 +22,7 @@ AstraArm::AstraArm(ArmJoint* setJoints[4]) {
 void AstraArm::setTargetAngles(float angle0, float angle1, float angle2, float angle3) {
     isIKMode = true;
     for (int i = 0; i < 4; i++) {
+        joints[i]->timeToGoal = timeToGoal;
         joints[i]->goalTime = long(millis()) + timeToGoal;
     }
     joints[0]->setTargetAngle(angle0);
