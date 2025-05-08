@@ -32,45 +32,29 @@ float ArmJoint::readAngle() {
     return lastEffectiveAngle;
 }
 
-float ArmJoint::updateIKMotion() {
-    float delta = targetAngle - lastEffectiveAngle;
+float ArmJoint::pid() {
+    float delta = clamp_angle(targetAngle - lastEffectiveAngle);
     if (abs(delta) < PRECISION)
         return 0;  // Stop if +/- 1 degree
 
     const double degPerSec = delta / (double(goalTime - long(millis())) / 1000.0);  // After gearbox
     double motorRPM = (degPerSec * 60.0 / 360.0) * double(gearRatio);  // Before gearbox
-    Serial.printf("(degPerSec: %f) (motorRPM: %f)\n", degPerSec, motorRPM);
-    if (motorRPM > MAX_SPEED) {
-        motorRPM = MAX_SPEED;
-    } else if (motorRPM < -MAX_SPEED) {
-        motorRPM = -MAX_SPEED;
-    } else if (motorRPM > 0 && motorRPM < MIN_SPEED) {
-        motorRPM = MIN_SPEED;
-    } else if (motorRPM < 0 && motorRPM > -MIN_SPEED) {
-        motorRPM = -MIN_SPEED;
+
+    return motorRPM;
+}
+
+float ArmJoint::updateIKMotion() {
+    float motorRPM = pid();
+    if (motorRPM == 0) {
+        return 0;
     }
+
+    motorRPM = clamp_velocity(motorRPM);
 
     if (inverted) {
         motorRPM = -motorRPM;
     }
     return -1 * motorRPM;
-
-    // // Duty cycle control
-    // float dutyCycle = delta / (maxAngle - minAngle);
-    // if (dutyCycle > MAX_SPEED) {
-    //     dutyCycle = MAX_SPEED;
-    // } else if (dutyCycle < -MAX_SPEED) {
-    //     dutyCycle = -MAX_SPEED;
-    // } else if (dutyCycle > 0 && dutyCycle < MIN_SPEED) {
-    //     dutyCycle = MIN_SPEED;
-    // } else if (dutyCycle < 0 && dutyCycle > -MIN_SPEED) {
-    //     dutyCycle = -MIN_SPEED;
-    // }
-
-    // if (inverted) {
-    //     dutyCycle = -dutyCycle;
-    // }
-    // return -1 * dutyCycle;
 }
 
 
@@ -83,4 +67,17 @@ float clamp_angle(float angle) {
         angle -= 360;
     }
     return angle;
+}
+
+float clamp_velocity(float velocity) {
+    if (velocity > MAX_SPEED) {
+        return MAX_SPEED;
+    } else if (velocity < -MAX_SPEED) {
+        return -MAX_SPEED;
+    } else if (velocity > 0 && velocity < MIN_SPEED) {
+        return MIN_SPEED;
+    } else if (velocity < 0 && velocity > -MIN_SPEED) {
+        return -MIN_SPEED;
+    }
+    return velocity;
 }

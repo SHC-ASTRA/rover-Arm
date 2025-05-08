@@ -22,6 +22,8 @@ const float MIN_SPEED = 50;
  */
 float clamp_angle(float angle);
 
+float clamp_velocity(float velocity);
+
 
 class ArmJoint {
 //    private:
@@ -37,6 +39,8 @@ class ArmJoint {
     int gearRatio;
     bool inverted;
     AS5047P* encoder;
+
+    float pid();
 
     public:
     ArmJoint(AS5047P* setEncoder, float setZeroAngle = 0, float setMinAngle = -115, float setMaxAngle = 115, int setGearRatio = 1, bool setInverted = false);
