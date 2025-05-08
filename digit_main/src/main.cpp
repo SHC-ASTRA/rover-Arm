@@ -264,7 +264,7 @@ void loop() {
 
         // General Misc
 
-        /**/ if (commandID == CMD_PING) {
+        if (commandID == CMD_PING) {
             vicCAN.respond(1);  // "pong"
             Serial.println("Received ping over CAN");
         }
@@ -298,13 +298,21 @@ void loop() {
             }
         }
 
+        else if (commandID == CMD_LSS_RESET) {
+            if (canData.size() == 1 && canData[0] == 1) {
+                lastCtrlCmd = millis();
+                topLSS.reset();
+                bottomLSS.reset();
+            }
+        }
+
         else if (commandID == CMD_ARM_IK_TTG) {
             if (canData.size() == 1) {
                 timeToGoal = canData[0];
             }
         }
 
-        else if (commandID == 35) {  // Wrist rotate
+        else if (commandID == CMD_DIGIT_WRIST_ROLL) {  // Wrist rotate
             if (canData.size() == 1 && (!isWristYawIK && wristYawDir == 0)) {
                 lastCtrlCmd = millis();
 
@@ -323,7 +331,7 @@ void loop() {
             }
         }
 
-        else if (commandID == 36) {  // Wrist yaw
+        else if (commandID == CMD_DIGIT_IK_CTRL) {  // Wrist yaw
             if (canData.size() == 2) {
                 lastCtrlCmd = millis();
                 // isWristYawIK = static_cast<bool>(canData[0]);
