@@ -365,10 +365,9 @@ void loop() {
 #endif
                 lastCtrlCmd = millis();
                 float speeds[4] = {0};
-                speeds[0] = canData[0] * 0.5;
-                speeds[1] = canData[1] * 0.75;
-                speeds[2] = canData[2] * 0.5;
-                speeds[3] = canData[3] * 0.5;
+                for (int i = 0; i < 4; i++) {
+                    speeds[i] = canData[i] * 0.75;
+                }
                 arm.runDuty(speeds);
             }
         }

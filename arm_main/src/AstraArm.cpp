@@ -66,7 +66,7 @@ void AstraArm::runDuty(float dutyCycles[4]) {
 
     float newDutyCycles[4] = {0};
 
-    // Check angle limits
+    // Check angle limits and Adjust duty cycles to account for gear ratio
     for (int i = 0; i < 4; i++) {
         if ((joints[i]->lastEffectiveAngle > joints[i]->maxAngle && dutyCycles[i] < 0)
          || (joints[i]->lastEffectiveAngle < joints[i]->minAngle && dutyCycles[i] > 0)) {
@@ -74,6 +74,10 @@ void AstraArm::runDuty(float dutyCycles[4]) {
         } else {
             newDutyCycles[i] = dutyCycles[i];
         }
+
+        // Axis 1 has the highest gear ratio, scale by ratio between this axis's gear ratio
+        // and axis 1's so lower gear ratios have lower duty cycle and spin joint at the same speed.
+        newDutyCycles[i] *= (joints[i]->gearRatio / joints[1]->gearRatio);
     }
 
     sendDuty(newDutyCycles[0], newDutyCycles[1], newDutyCycles[2], newDutyCycles[3]);
