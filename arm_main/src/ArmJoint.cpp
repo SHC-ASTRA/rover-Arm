@@ -37,7 +37,7 @@ double ArmJoint::pid(double pTargetAngle) {
     if (abs(error) < PRECISION)
         return 0;  // Stop if +/- 1 degree
     
-    error = (error / 160.0) * static_cast<double>(gearRatio);  // Convert to motor rotations from gearbox degrees
+    error = (error / 360.0) * static_cast<double>(gearRatio);  // Convert to motor rotations from gearbox degrees
 
     integral += error * (dt / 1000.0);
     double derivative = (error - prevError) / (dt / 1000.0);
