@@ -24,6 +24,7 @@
 #include "AstraVicCAN.h"
 #include "ArmMainMCU.h"
 #include "AstraArm.h"
+#include "project\ARM.h"
 
 
 //------------//
@@ -227,10 +228,11 @@ void loop() {
 
     if (millis() - lastVoltRead > 1000) {
         lastVoltRead = millis();
-        float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
-        float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
-        float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
-        float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 1.1);
+        # warning this was cousing issues, so I uncommented it
+        float vBatt = 0;//convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
+        float v12 = 0;//convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
+        float v5 = 0;//convertADC(analogRead(PIN_VDIV_5V), 10, 10);
+        float v33 = 0;//convertADC(analogRead(PIN_VDIV_3V3), 10, 1.1);
 
         vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
     }

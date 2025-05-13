@@ -18,6 +18,7 @@
 #include "AstraREVCAN.h"
 #include "AstraMotors.h"
 #include "ArmMotorMCU.h"
+#include "project\ARM.h"
 
 
 //------------//
