@@ -13,6 +13,7 @@
 
 #include <Arduino.h>
 #include <cmath>
+#include "soc/rtc_wdt.h"
 
 #include <SPI.h>
 // #include <HighPowerStepperDriver.h>
@@ -109,6 +110,9 @@ void setup()
     //--------//
 
     pinMode(LED_BUILTIN, OUTPUT);
+
+    rtc_wdt_protect_off();
+    rtc_wdt_disable();
 
 
     //-----------//
