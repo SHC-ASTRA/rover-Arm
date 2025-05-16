@@ -126,7 +126,7 @@ void setup()
     Serial.begin(SERIAL_BAUD);
     COMMS_UART.begin(COMMS_UART_BAUD);
 
-    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, 13, 12))
+    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX))
         Serial.println("CAN bus started!");
     else
         Serial.println("CAN bus failed!");

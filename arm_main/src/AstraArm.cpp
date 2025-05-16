@@ -77,7 +77,7 @@ void AstraArm::runDuty(float dutyCycles[4]) {
 
         // Axis 1 has the highest gear ratio, scale by ratio between this axis's gear ratio
         // and axis 1's so lower gear ratios have lower duty cycle and spin joint at the same speed.
-        newDutyCycles[i] *= (joints[i]->gearRatio / joints[1]->gearRatio);
+        newDutyCycles[i] *= (double(joints[i]->gearRatio) / double(joints[1]->gearRatio));
     }
 
     sendDuty(newDutyCycles[0], newDutyCycles[1], newDutyCycles[2], newDutyCycles[3]);
