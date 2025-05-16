@@ -9,7 +9,11 @@
 #include <Arduino.h>
 #include "ArmJoint.h"
 
-#define MOTORSERIAL Serial1
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+#   define MOTORSERIAL Serial1
+#else
+#   define MOTORSERIAL Serial2
+#endif
 
 
 class AstraArm {

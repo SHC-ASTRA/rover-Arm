@@ -13,7 +13,22 @@
 //   DOIT ESP32 Devkit V1 (URC 2025, Socket V2)
 //------------------------------------------------------------------------------------------------//
 
-#    warning "Pins from new PCB not added yet!"
+#    define COMMS_UART Serial2  // UART between Main-Motor
+
+#    define ENCODER_AXIS0_PIN 32
+#    define ENCODER_AXIS1_PIN 33
+#    define ENCODER_AXIS2_PIN 25
+#    define ENCODER_AXIS3_PIN 26
+
+#    define CAN_TX 13
+#    define CAN_RX 14
+
+#    define PIN_VDIV_BATT 39
+#    define PIN_VDIV_12V 36
+#    define PIN_VDIV_5V 34
+#    define PIN_VDIV_3V3 35
+
+#    define MOTOR_AMOUNT 4
 
 
 #elif defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)

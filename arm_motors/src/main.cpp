@@ -25,7 +25,11 @@
 //------------//
 
 #if !defined(DEBUG)
-#    define COMMS_UART Serial1  // To/from Main MCU
+#    ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+#        define COMMS_UART Serial1  // To/from Main MCU
+#    else
+#        define COMMS_UART Serial2  // To/from Main MCU
+#    endif
 #else
 #    define COMMS_UART Serial  // To/from USB for debugging
 #endif
@@ -67,6 +71,8 @@ bool safetyOn = true;
 
 uint32_t lastAccel = 0;
 
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+
 hw_timer_t *Timer0_Cfg = NULL, *Timer1_Cfg = NULL;
 
 void IRAM_ATTR Timer0_ISR() {
@@ -77,6 +83,22 @@ void IRAM_ATTR Timer0_ISR() {
         heartBeatNum = 1;
     }
 }
+
+#else
+
+void loop2(void* pvParameters) {
+    while (true) {
+        CAN_sendHeartbeat(heartBeatNum);
+        heartBeatNum++;
+        if (heartBeatNum > 4)
+        {
+            heartBeatNum = 1;
+        }
+        delay(5);
+    }
+}
+
+#endif
 
 
 //--------------//
@@ -136,10 +158,26 @@ void setup() {
     //  Misc. Components  //
     //--------------------//
 
+    #ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+
     Timer0_Cfg = timerBegin(0, 80, true);
     timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
     timerAlarmWrite(Timer0_Cfg, 5000, true);
     timerAlarmEnable(Timer0_Cfg);
+
+    #else
+
+    xTaskCreatePinnedToCore (
+        loop2,     // Function to implement the task
+        "loop2",   // Name of the task
+        1000,      // Stack size in bytes
+        NULL,      // Task input parameter
+        0,         // Priority of the task
+        NULL,      // Task handle.
+        0          // Core where the task should run
+    );
+
+    #endif
 }
 
 
@@ -266,7 +304,11 @@ void loop() {
         parseInput(input, args);
         args[0].toLowerCase();
 
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
         Serial1.println(input);
+#else
+        Serial2.println(input);
+#endif
         Serial.println(input);
 
         //--------//
