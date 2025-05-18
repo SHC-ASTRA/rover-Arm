@@ -13,6 +13,12 @@
 #include <Arduino.h>
 #include <LSS.h>
 
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+#    include <SPI.h>    // Fixes compilation issue with Adafruit BusIO
+#    include <ESP32Servo.h>
+#    include <Adafruit_SHT31.h>  // adafruit/Adafruit SHT31 Library
+#endif
+
 #include "AstraMisc.h"
 #include "AstraVicCAN.h"
 #include "DigitMainMCU.h"
@@ -30,6 +36,9 @@
 #define LSS_TOP_ID 1
 #define LSS_BOTTOM_ID 2
 
+#define REV_PWM_MIN 1000  // us  -1.0 duty
+#define REV_PWM_MAX 2000  // us  1.0 duty
+
 
 //---------------------//
 //  Component classes  //
@@ -37,6 +46,16 @@
 
 LSS topLSS = LSS(LSS_TOP_ID);
 LSS bottomLSS = LSS(LSS_BOTTOM_ID);
+
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+
+// Now controls SCABBARD NEO-550 motor
+Servo neo550;
+
+// Faerie HUM/TEMP sensor (in SCABBARD)
+Adafruit_SHT31 sht31;
+
+#endif
 
 
 //----------//
@@ -62,6 +81,18 @@ int timeToGoal = 0;  // ms
 
 unsigned long lastFeedback = 0;  // ms
 unsigned long lastVoltRead = 0;
+
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+// Shake mode variables
+
+const float SHAKEOPTIONS[5] = {0.1, 0.2, 0.3, 0.4, 0.5};
+const uint32_t SHAKEINTERVAL = 250;   // Shake interval
+const uint32_t SHAKEDURATION = 2500;  // How long to shake
+uint32_t shakeStart = 0;              // millis value when shaking started
+uint32_t lastShake = 0;               // Last millis value of shake update
+bool shakeMode = false;               // Whether or not currently shaking
+int shakeDir = 1;                     // Positive or negative to shake in open or close dir
+#endif
 
 
 //--------------//
@@ -132,6 +163,14 @@ void setup() {
     //  Sensors  //
     //-----------//
 
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+    if (!sht31.begin(0x44)) {  // HUM/Temp
+        Serial.println("Couldn't find SHT31!");
+    } else {
+        Serial.println("SHT31 initialized.");
+    }
+#endif
+
 
     //--------------------//
     //  Misc. Components  //
@@ -146,6 +185,11 @@ void setup() {
     // Complete LSS configuration
     // topLSS.reset();
     // bottomLSS.reset();
+
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+    // SCABBARD NEO-550 motor
+    neo550.attach(SPARK_PWM, REV_PWM_MIN, REV_PWM_MAX);
+#endif
 
     // Wait for LSS reboot
     delay(2000);
@@ -194,6 +238,32 @@ void loop() {
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, wristYaw);  // Currently just 0
     }
 
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+    // Telemetry
+    // if (millis() - lastDataSend >= 1000) {
+    //     lastDataSend = millis();
+
+    //     Serial.println(getSHTData());
+    // }
+
+    // SCABBARD Shake
+    // if (shakeMode && millis() - lastShake >= SHAKEINTERVAL) {
+    //     lastShake = millis();
+
+    //     unsigned ind = rand() % 5;  // 0-4 inclusive, seeded by command
+
+    //     if (ind < 0 || ind > 4)
+    //         ind = 0;
+    //     neo550.write(0);
+
+    //     // Don't shake for longer than SHAKEDURATION
+    //     if (shakeStart + SHAKEDURATION <= millis()) {
+    //         shakeMode = false;
+    //         neo550.write(0);
+    //     }
+    // }
+#endif
+
     if (millis() - lastVoltRead > 1000) {
         lastVoltRead = millis();
         float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
@@ -212,6 +282,7 @@ void loop() {
         analogWrite(MOTOR_IN2, 0);
     }
 
+    // Wrist Yaw
     // if (millis() - lastWristYawIter > 175 && (isWristYawIK || wristYawDir != 0)) {
     //     lastWristYawIter = millis();
 
@@ -277,6 +348,22 @@ void loop() {
             }
         }
 
+        // REV
+
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+        else if (commandID == CMD_REV_STOP) {
+            lastCtrlCmd = millis();
+            neo550.write((REV_PWM_MIN + REV_PWM_MAX) / 2);
+        }
+
+        else if (commandID == CMD_REV_SET_DUTY) {
+            if (canData.size() == 1) {
+                lastCtrlCmd = millis();
+                neo550.writeMicroseconds(map_d(canData[0], -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX));
+            }
+        }
+#endif
+
         // Misc Physical Control
 
         else if (commandID == CMD_DCMOTOR_CTRL) {
@@ -305,6 +392,8 @@ void loop() {
                 bottomLSS.reset();
             }
         }
+
+        // Submodule Specific
 
         else if (commandID == CMD_ARM_IK_TTG) {
             if (canData.size() == 1) {
@@ -354,6 +443,41 @@ void loop() {
                 }
             }
         }
+
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+        else if (commandID == CMD_FAERIE_SKAKE) {  // TODO: fix typo :(
+            if (canData.size() == 1 && (canData[0] == -1 || canData[0] == 1)) {
+                lastCtrlCmd = millis();
+
+                shakeMode = true;
+                shakeDir = canData[0];
+                lastShake = 0;
+                shakeStart = millis();
+
+                // Seed rand() for random duty cycles
+                srand(millis());
+            }
+        }
+
+        else if (commandID == 42) {  // New linear actuator for FAERIE
+            if (canData.size() == 1) {
+                lastCtrlCmd = millis();
+                // Defeat the evil analogWrite()
+                pinMode(MOTOR_IN1, OUTPUT);
+                pinMode(MOTOR_IN2, OUTPUT);
+                if (canData[1] == 1) {
+                    digitalWrite(MOTOR_IN1, LOW);
+                    digitalWrite(MOTOR_IN2, HIGH);
+                } else if (canData[1] == 0) {
+                    digitalWrite(MOTOR_IN1, LOW);
+                    digitalWrite(MOTOR_IN2, LOW);
+                } else if (canData[1] == -1) {
+                    digitalWrite(MOTOR_IN1, HIGH);
+                    digitalWrite(MOTOR_IN2, LOW);
+                }
+            }
+        }
+#endif
     }
 
 
@@ -518,6 +642,10 @@ void stopEverything() {
     digitalWrite(LINAC_FIN, LOW);
     // Turn off laser
     digitalWrite(LASER_NMOS, LOW);
+#ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+    // Stop SCABBARD NEO-550 motor
+    neo550.write((REV_PWM_MIN + REV_PWM_MAX) / 2);
+#endif
 }
 
 void efCtrl(int dir) {
