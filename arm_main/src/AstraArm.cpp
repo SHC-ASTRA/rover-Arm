@@ -42,8 +42,7 @@ void AstraArm::updateIKMotion() {
         float newDutyCycles[4] = {lastDutyCycles[0], lastDutyCycles[1], lastDutyCycles[2], lastDutyCycles[3]};
 
         for (int i = 0; i < 4; i++) {
-            if ((joints[i]->lastEffectiveAngle > joints[i]->maxAngle && lastDutyCycles[i] < 0)
-             || (joints[i]->lastEffectiveAngle < joints[i]->minAngle && lastDutyCycles[i] > 0)) {
+            if (!joints[i]->checkDuty(lastDutyCycles[i])) {
                 wasLimitViolation = true;
                 newDutyCycles[i] = 0;
             }
@@ -64,15 +63,12 @@ void AstraArm::updateIKMotion() {
 void AstraArm::runDuty(float dutyCycles[4]) {
     isIKMode = false;
 
-    float newDutyCycles[4] = {0};
+    float newDutyCycles[4] = {dutyCycles[0], dutyCycles[1], dutyCycles[2], dutyCycles[3]};
 
     // Check angle limits and Adjust duty cycles to account for gear ratio
     for (int i = 0; i < 4; i++) {
-        if ((joints[i]->lastEffectiveAngle > joints[i]->maxAngle && dutyCycles[i] < 0)
-         || (joints[i]->lastEffectiveAngle < joints[i]->minAngle && dutyCycles[i] > 0)) {
+        if (!joints[i]->checkDuty(dutyCycles[i])) {
             newDutyCycles[i] = 0;
-        } else {
-            newDutyCycles[i] = dutyCycles[i];
         }
 
         // Axis 1 has the highest gear ratio, scale by ratio between this axis's gear ratio

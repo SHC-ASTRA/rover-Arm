@@ -11,7 +11,7 @@
 
 const float PRECISION = 1;
 
-const float MAX_SPEED = 1000;
+const float MAX_SPEED = 500;
 const float MIN_SPEED = 50;
 
 const float dt = 50;  // ms
@@ -62,5 +62,15 @@ class ArmJoint {
         } else if (targetAngle > maxAngle) {
             targetAngle = maxAngle;
         }
+    }
+
+    inline bool checkDuty(float duty) {
+        if (inverted)
+            duty = -duty;
+        if ((lastEffectiveAngle > maxAngle && duty < 0)
+            || (lastEffectiveAngle < minAngle && duty > 0)) {
+            return false;
+        }
+        return true;
     }
 };
