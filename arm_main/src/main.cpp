@@ -15,7 +15,6 @@
 #include <cmath>
 
 #include <SPI.h>
-// #include <HighPowerStepperDriver.h>
 #include "AS5047P.h"
 
 // Our own resources
@@ -42,8 +41,6 @@
 //  Component classes  //
 //---------------------//
 
-// HighPowerStepperDriver sd;
-
 AS5047P ax0_encoder(ENCODER_AXIS0_PIN, SPI_BUS_SPEED); 
 AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED); 
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED); 
@@ -69,20 +66,13 @@ const uint16_t StepPeriodUs = 2000;
 
 unsigned long lastFeedback = 0;
 unsigned long lastVoltRead = 0;
-// unsigned long lastMotorStep = 0;
 unsigned long lastCtrlCmd = 0;
-
 unsigned long lastIKUpdate = 0;
-
-// double AX0Speed = 0;
-// bool AX0En = false;
 
 
 //--------------//
 //  Prototypes  //
 //--------------//
-
-// void updateMotorState();
 
 
 //------------------------------------------------------------------------------------------------//
@@ -133,32 +123,6 @@ void setup()
 
     SPI.begin();
 
-
-    //-----------------//
-    //  Stepper Motor  //
-    //-----------------//
-
-    // sd.setChipSelectPin(AX0_CS);
-
-    delay(1);
-    
-    // sd.resetSettings();
-    // sd.clearStatus();
-
-    // // Select auto mixed decay.  TI's DRV8711 documentation recommends this mode
-    // // for most applications, and we find that it usually works well.
-    // sd.setDecayMode(HPSDDecayMode::AutoMixed);
-
-    // // Set the current limit. You should change the number here to an appropriate
-    // // value for your particular system.  If you are using a 36v8 board, call
-    // // setCurrentMilliamps36v8 instead.
-    // sd.setCurrentMilliamps36v4(1000);
-
-    // // Set the number of microsteps that correspond to one full step.
-    // sd.setStepMode(HPSDStepMode::MicroStep2);
-
-    // // Enable the motor outputs.
-    // sd.enableDriver();
 
     //-----------------//
     //  Encoder Setup  //
@@ -218,12 +182,6 @@ void loop() {
         digitalWrite(LED_BUILTIN, ledState);
     }
 #endif
-
-    // if ((millis() - lastMotorStep >= 1) && AX0En)
-    // {
-    //     lastMotorStep = millis();
-    //     sd.step();
-    // }
 
     if (millis() - lastVoltRead > 1000) {
         lastVoltRead = millis();
@@ -501,7 +459,6 @@ void loop() {
             Serial.println("| Serial IK Time cmd recieved                          |");
 #endif
 
-            // findSpeedandTime(args[1].toFloat());
             lastCtrlCmd = millis();
         }
     }
@@ -544,74 +501,3 @@ void loop() {
 //    //            //          //      //////////    //
 //                                                    //
 //----------------------------------------------------//
-
-
-// void findSpeedandTime(int time)               // Based on how long it will take for axis 0 to get to target location
-// {
-//     double setSpeed[MOTOR_AMOUNT];
-//     // Figure out the degrees per second
-//     readEncoders();
-//     for (int i = 0; i < MOTOR_AMOUNT; i++)
-//     {
-//         setSpeed[i] = abs(AxisPosition[i] - AxisSetPosition[i])/time;
-//     }
-
-//     convertToDutyCycleA0(setSpeed[0], 7.0625);
-//     convertToDutyCycle(setSpeed[1], 5000);
-//     convertToDutyCycle(setSpeed[2], 3750);
-//     convertToDutyCycle(setSpeed[3], 2500);
-
-//     // Send the ctrl, speed, speed, speed command here
-//     COMMS_UART.printf("ctrl,%i,%i,%i\n", setSpeed[1], setSpeed[2], setSpeed[3]);
-// }
-
-// // Pass by reference because it's easier
-// void convertToDutyCycle(double& dpsSpeed, float gearRatio)
-// {
-//     dpsSpeed = (dpsSpeed*gearRatio)/11000; // Retarded solution, should be changed
-// }
-
-// void convertToDutyCycleA0(double& dpsSpeed, float gearRatio)
-// {
-//     // Steps per millisecond
-//     dpsSpeed = (dpsSpeed*gearRatio)*7.63/1000;//0.05388
-//     // convert to period
-//     dpsSpeed = 1/dpsSpeed;
-// #ifdef ARM_DEBUG
-//     Serial.println("|------------------------------------------------------|");
-//     Serial.print("| AX0 Speed Set To: ");
-//     Serial.println(dpsSpeed);
-// #endif
-    
-//     if (dpsSpeed < 0)
-//     {
-//         sd.setDirection(TURNRIGHT);
-//     }
-//     else
-//     {
-//         sd.setDirection(TURNLEFT);
-//     }
-//     AX0Speed = dpsSpeed;
-//     AX0En = true;
-// }
-
-// void updateMotorState()
-// {
-//     for (int i = 0; i < MOTOR_AMOUNT; i++)
-//     {
-//         if(!AxisComplete[i] && abs(AxisPosition[i] - AxisSetPosition[i]) < 1)
-//         {
-//             // motorList[i-1]->stop();
-//             if (i == 0)
-//             {
-//                 AX0En = false;
-//             }
-//             else
-//             {
-//                 COMMS_UART.printf("stop,%i\n",i);
-//             }
-            
-//             AxisComplete[i] = true;
-//         }
-//     } 
-// }
