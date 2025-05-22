@@ -158,7 +158,7 @@ void setup() {
     //  Misc. Components  //
     //--------------------//
 
-    #ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 
     Timer0_Cfg = timerBegin(0, 80, true);
     timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
@@ -177,7 +177,7 @@ void setup() {
         0          // Core where the task should run
     );
 
-    #endif
+#endif
 }
 
 
