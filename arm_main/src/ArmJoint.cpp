@@ -24,10 +24,11 @@ ArmJoint::ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, f
 
 float ArmJoint::readAngle() {
     AS5047P_Types::ERROR_t errorInfo;
-    lastEncoderAngle = clamp_angle(encoder->readAngleDegree(true, &errorInfo));
-    lastEncoderReadTime = millis();
-
-    lastEffectiveAngle = clamp_angle(lastEncoderAngle - zeroAngle);
+    lastEncoderAngle = clamp_angle(encoder->readAngleDegree(true, &errorInfo, true, true, true));
+    if (errorInfo.noError()) {
+        lastEncoderReadTime = millis();
+        lastEffectiveAngle = clamp_angle(lastEncoderAngle - zeroAngle);
+    }
 
     return lastEffectiveAngle;
 }
@@ -50,6 +51,9 @@ double ArmJoint::pid(double pTargetAngle) {
 }
 
 float ArmJoint::updateIKMotion() {
+    if (static_cast<long>(millis()) - lastEncoderReadTime > dt)
+        return 0;  // Don't move if encoder data is too old
+
     double pidTargetAngle = targetAngle;  // Will come from S-curve
 
     float motorRPM = pid(targetAngle);
@@ -57,7 +61,7 @@ float ArmJoint::updateIKMotion() {
         return 0;
     }
 
-    motorRPM = clamp_velocity(motorRPM);
+    motorRPM = clamp_velocity(motorRPM);  // Keep non-zero velocity within MIN_SPEED and MAX_SPEED
 
     if (inverted) {
         motorRPM = -motorRPM;
