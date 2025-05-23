@@ -92,6 +92,7 @@ uint32_t shakeStart = 0;              // millis value when shaking started
 uint32_t lastShake = 0;               // Last millis value of shake update
 bool shakeMode = false;               // Whether or not currently shaking
 int shakeDir = 1;                     // Positive or negative to shake in open or close dir
+
 #endif
 
 
@@ -359,7 +360,10 @@ void loop() {
         else if (commandID == CMD_REV_SET_DUTY) {
             if (canData.size() == 1) {
                 lastCtrlCmd = millis();
-                neo550.writeMicroseconds(map_d(canData[0], -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX));
+                int value = map_d(canData[0], -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX);
+                neo550.writeMicroseconds(value);
+                Serial.print("Setting REV duty to ");
+                Serial.println(value);
             }
         }
 #endif
