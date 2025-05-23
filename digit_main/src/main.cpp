@@ -53,7 +53,7 @@ LSS bottomLSS = LSS(LSS_BOTTOM_ID);
 Servo neo550;
 
 // Faerie HUM/TEMP sensor (in SCABBARD)
-Adafruit_SHT31 sht31;
+Adafruit_SHT31 sht;
 
 #endif
 
@@ -65,11 +65,11 @@ Adafruit_SHT31 sht31;
 uint32_t lastBlink = 0;
 bool ledState = false;
 
-unsigned long lastCtrlCmd = millis();
+long lastCtrlCmd = millis();
 
-uint32_t lastFault = 0;
+long lastFault = 0;
 
-uint32_t lastWristYawIter = 0;  // ms
+long lastWristYawIter = 0;  // ms
 
 int wristYaw = 0;  // degrees; Current yaw angle of wrist
 int wristYawDir = 0;  // Direction of wrist yaw: 1 = Close, 0 = Stop, -1 = Open
@@ -79,8 +79,9 @@ bool isWristYawIK = false;  // Is IK controlling yaw now?
 int wristYawIKGoal = 0;  // degrees; Goal for wristYaw from IK
 int timeToGoal = 0;  // ms
 
-unsigned long lastFeedback = 0;  // ms
-unsigned long lastVoltRead = 0;
+long lastFeedback = 0;  // ms
+long lastVoltRead = 0;
+long lastDataSend = 0;
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 // Shake mode variables
@@ -165,7 +166,7 @@ void setup() {
     //-----------//
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-    if (!sht31.begin(0x44)) {  // HUM/Temp
+    if (!sht.begin(0x44)) {  // HUM/Temp
         Serial.println("Couldn't find SHT31!");
     } else {
         Serial.println("SHT31 initialized.");
@@ -241,11 +242,14 @@ void loop() {
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     // Telemetry
-    // if (millis() - lastDataSend >= 1000) {
-    //     lastDataSend = millis();
+    if (millis() - lastDataSend >= 1000) {
+        lastDataSend = millis();
 
-    //     Serial.println(getSHTData());
-    // }
+        float temp, hum;
+        sht.readBoth(&temp, &hum);
+        
+        vicCAN.send(57, temp, hum);
+    }
 
     // SCABBARD Shake
     // if (shakeMode && millis() - lastShake >= SHAKEINTERVAL) {
