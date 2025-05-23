@@ -13,7 +13,8 @@
 //   DOIT ESP32 Devkit V1 (URC 2025, Socket V2)
 //------------------------------------------------------------------------------------------------//
 
-#    warning "Pins from new PCB not added yet!"
+#    define CAN_TX 13
+#    define CAN_RX 14
 
 
 #elif defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)

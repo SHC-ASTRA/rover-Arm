@@ -16,10 +16,15 @@ AstraArm::AstraArm(ArmJoint* setJoints[4]) {
     for (int i = 0; i < 4; i++) {
         lastDutyCycles[i] = 0;
     }
+    timeToGoal = 5000;  // Default time to goal is 5 seconds
 }
 
 void AstraArm::setTargetAngles(float angle0, float angle1, float angle2, float angle3) {
     isIKMode = true;
+    for (int i = 0; i < 4; i++) {
+        joints[i]->timeToGoal = timeToGoal;
+        joints[i]->goalTime = long(millis()) + timeToGoal;
+    }
     joints[0]->setTargetAngle(angle0);
     joints[1]->setTargetAngle(angle1);
     joints[2]->setTargetAngle(angle2);
@@ -37,8 +42,7 @@ void AstraArm::updateIKMotion() {
         float newDutyCycles[4] = {lastDutyCycles[0], lastDutyCycles[1], lastDutyCycles[2], lastDutyCycles[3]};
 
         for (int i = 0; i < 4; i++) {
-            if ((joints[i]->lastEffectiveAngle > joints[i]->maxAngle && lastDutyCycles[i] < 0)
-             || (joints[i]->lastEffectiveAngle < joints[i]->minAngle && lastDutyCycles[i] > 0)) {
+            if (!joints[i]->checkDuty(lastDutyCycles[i])) {
                 wasLimitViolation = true;
                 newDutyCycles[i] = 0;
             }
@@ -49,26 +53,27 @@ void AstraArm::updateIKMotion() {
         return;
     }
 
-    float dutycycles[4] = {0};
+    float velocities[4] = {0};
     for (int i = 0; i < 4; i++) {
-        dutycycles[i] = joints[i]->updateIKMotion();
+        velocities[i] = joints[i]->updateIKMotion();
     }
-    sendDuty(dutycycles[0], dutycycles[1], dutycycles[2], dutycycles[3]);
+    sendVelocity(velocities[0], velocities[1], velocities[2], velocities[3]);
 }
 
 void AstraArm::runDuty(float dutyCycles[4]) {
     isIKMode = false;
 
-    float newDutyCycles[4] = {0};
+    float newDutyCycles[4] = {dutyCycles[0], dutyCycles[1], dutyCycles[2], dutyCycles[3]};
 
-    // Check angle limits
+    // Check angle limits and Adjust duty cycles to account for gear ratio
     for (int i = 0; i < 4; i++) {
-        if ((joints[i]->lastEffectiveAngle > joints[i]->maxAngle && dutyCycles[i] < 0)
-         || (joints[i]->lastEffectiveAngle < joints[i]->minAngle && dutyCycles[i] > 0)) {
+        if (!joints[i]->checkDuty(dutyCycles[i])) {
             newDutyCycles[i] = 0;
-        } else {
-            newDutyCycles[i] = dutyCycles[i];
         }
+
+        // Axis 1 has the highest gear ratio, scale by ratio between this axis's gear ratio
+        // and axis 1's so lower gear ratios have lower duty cycle and spin joint at the same speed.
+        newDutyCycles[i] *= (double(joints[i]->gearRatio) / double(joints[1]->gearRatio));
     }
 
     sendDuty(newDutyCycles[0], newDutyCycles[1], newDutyCycles[2], newDutyCycles[3]);

@@ -11,9 +11,13 @@
 
 const float PRECISION = 1;
 
-const float SPEED_MULT = 3.0;
-const float MAX_SPEED = 0.75;
-const float MIN_SPEED = 0.2;
+const float MAX_SPEED = 500;
+const float MIN_SPEED = 100;
+
+const float dt = 50;  // ms
+const float kP = 10.0;
+const float kI = 0.0;
+const float kD = 0.0;
 
 /**
  * @brief Clamps angle between -180 and +180 degrees
@@ -22,6 +26,8 @@ const float MIN_SPEED = 0.2;
  * @return float degrees
  */
 float clamp_angle(float angle);
+
+float clamp_velocity(float velocity);
 
 
 class ArmJoint {
@@ -32,21 +38,23 @@ class ArmJoint {
     float lastEffectiveAngle;
     float lastEncoderAngle;
     long lastEncoderReadTime;
+    float integral;
+    float prevError;
     float minAngle;
     float maxAngle;
-    int timeToGoal;
+    long timeToGoal;
+    long goalTime;  // millis() value when the arm should be at its goal
     int gearRatio;
     bool inverted;
     AS5047P* encoder;
+
+    double pid(double pTargetAngle);
 
     public:
     ArmJoint(AS5047P* setEncoder, float setZeroAngle = 0, float setMinAngle = -115, float setMaxAngle = 115, int setGearRatio = 1, bool setInverted = false);
     float readAngle();
     float updateIKMotion();
 
-    inline void setTTG(int ttgMs) {
-        timeToGoal = ttgMs;
-    }
     inline void setTargetAngle(float angle) {
         targetAngle = angle;
         if (targetAngle < minAngle) {
@@ -54,5 +62,15 @@ class ArmJoint {
         } else if (targetAngle > maxAngle) {
             targetAngle = maxAngle;
         }
+    }
+
+    inline bool checkDuty(float duty) {
+        if (inverted)
+            duty = -duty;
+        if ((lastEffectiveAngle > maxAngle && duty < 0)
+            || (lastEffectiveAngle < minAngle && duty > 0)) {
+            return false;
+        }
+        return true;
     }
 };
