@@ -473,13 +473,13 @@ void loop() {
                 // Defeat the evil analogWrite()
                 pinMode(MOTOR_IN1, OUTPUT);
                 pinMode(MOTOR_IN2, OUTPUT);
-                if (canData[0] == 1) {
+                if (canData[0] >= 1) {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, HIGH);
                 } else if (canData[0] == 0) {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, LOW);
-                } else if (canData[0] == -1) {
+                } else if (canData[0] <= -1) {
                     digitalWrite(MOTOR_IN1, HIGH);
                     digitalWrite(MOTOR_IN2, LOW);
                 }
