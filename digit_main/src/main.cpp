@@ -252,21 +252,21 @@ void loop() {
     }
 
     // SCABBARD Shake
-    // if (shakeMode && millis() - lastShake >= SHAKEINTERVAL) {
-    //     lastShake = millis();
+    if (shakeMode && millis() - lastShake >= SHAKEINTERVAL) {
+        lastShake = millis();
 
-    //     unsigned ind = rand() % 5;  // 0-4 inclusive, seeded by command
+        unsigned ind = rand() % 5;  // 0-4 inclusive, seeded by command
 
-    //     if (ind < 0 || ind > 4)
-    //         ind = 0;
-    //     neo550.write(0);
+        if (ind < 0 || ind > 4)
+            ind = 0;
+        neo550.write(0);
 
-    //     // Don't shake for longer than SHAKEDURATION
-    //     if (shakeStart + SHAKEDURATION <= millis()) {
-    //         shakeMode = false;
-    //         neo550.write(0);
-    //     }
-    // }
+        // Don't shake for longer than SHAKEDURATION
+        if (shakeStart + SHAKEDURATION <= millis()) {
+            shakeMode = false;
+            neo550.write(0);
+        }
+    }
 #endif
 
     if (millis() - lastVoltRead > 1000) {
