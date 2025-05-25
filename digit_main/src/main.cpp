@@ -20,6 +20,7 @@
 #endif
 
 #include "AstraMisc.h"
+#include "AstraNP.h"
 #include "AstraVicCAN.h"
 #include "DigitMainMCU.h"
 
@@ -46,6 +47,8 @@
 
 LSS topLSS = LSS(LSS_TOP_ID);
 LSS bottomLSS = LSS(LSS_BOTTOM_ID);
+
+AstraNeoPixel np(PIN_NEOPIXEL);
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 
@@ -82,6 +85,7 @@ int timeToGoal = 0;  // ms
 long lastFeedback = 0;  // ms
 long lastVoltRead = 0;
 long lastDataSend = 0;
+long lastNP = 0;
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 // Shake mode variables
@@ -131,6 +135,8 @@ void setup() {
     delay(1000);
     digitalWrite(LED_BUILTIN, LOW);
 
+    np.writeColor(COLOR_SETUP_START);
+
     // Laser
     pinMode(LASER_NMOS, OUTPUT);
     digitalWrite(LASER_NMOS, LOW);
@@ -155,21 +161,26 @@ void setup() {
 
     Serial.begin(SERIAL_BAUD);
 
-    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX))
+    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX)) {
         Serial.println("CAN bus started!");
-    else
+    } else {
         Serial.println("CAN bus failed!");
+        np.addStatus(STATUS_CAN_NOCONN, 30);
+    }
 
 
     //-----------//
     //  Sensors  //
     //-----------//
 
+    np.writeColor(COLOR_SETUP_SENSORS);
+
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-    if (!sht.begin(0x44)) {  // HUM/Temp
-        Serial.println("Couldn't find SHT31!");
-    } else {
+    if (sht.begin(0x44)) {  // HUM/Temp
         Serial.println("SHT31 initialized.");
+    } else {
+        Serial.println("Couldn't find SHT31!");
+        // np.addStatus(STATUS_SHT_NOCONN, 30);
     }
 #endif
 
@@ -179,6 +190,18 @@ void setup() {
     //--------------------//
 
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
+
+    //! Experimental!
+    if (topLSS.reset()) {
+        Serial.println("Top LSS successfully resetting.");
+    } else {
+        Serial.println("Top LSS not found!");
+    }
+    if (bottomLSS.reset()) {
+        Serial.println("Bottom LSS successfully resetting.");
+    } else {
+        Serial.println("Bottom LSS not found!");
+    }
 
     // 1 degree / 175 ms
     topLSS.setMaxSpeed(100);
@@ -192,6 +215,8 @@ void setup() {
     // SCABBARD NEO-550 motor
     neo550.attach(SPARK_PWM, REV_PWM_MIN, REV_PWM_MAX);
 #endif
+
+    np.writeColor(COLOR_SETUP_DONE);
 
     // Wait for LSS reboot
     delay(2000);
@@ -285,6 +310,12 @@ void loop() {
         // Stop EF motor
         analogWrite(MOTOR_IN1, 0);
         analogWrite(MOTOR_IN2, 0);
+    }
+
+    // Neopixel status update
+    if (millis() - lastNP > 50) {
+        lastNP = millis();
+        np.update();
     }
 
     // Wrist Yaw
