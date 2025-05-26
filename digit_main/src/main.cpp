@@ -151,8 +151,13 @@ void setup() {
     pinMode(MOTOR_IN1, OUTPUT);
     pinMode(MOTOR_IN2, OUTPUT);
     pinMode(MOTOR_FAULT, INPUT);  // External pull-up resistor
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     analogWrite(MOTOR_IN1, 0);
     analogWrite(MOTOR_IN2, 0);
+#else
+    digitalWrite(MOTOR_IN1, LOW);
+    digitalWrite(MOTOR_IN2, LOW);
+#endif
 
 
     //------------------//
@@ -308,8 +313,13 @@ void loop() {
         lastFault = millis();  // Always check unless there has been a fault <1 second ago
         Serial.println("EF Motor fault detected: over-current, over-temperature, or under-voltage.");
         // Stop EF motor
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
         analogWrite(MOTOR_IN1, 0);
         analogWrite(MOTOR_IN2, 0);
+#else
+        digitalWrite(MOTOR_IN1, LOW);
+        digitalWrite(MOTOR_IN2, LOW);
+#endif
     }
 
     // Neopixel status update
@@ -395,7 +405,7 @@ void loop() {
         else if (commandID == CMD_REV_SET_DUTY) {
             if (canData.size() == 1) {
                 lastCtrlCmd = millis();
-                int value = map_d(canData[0], -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX);
+                int value = map_d(canData[0] / 100.0, -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX);
                 neo550.writeMicroseconds(value);
                 Serial.print("Setting REV duty to ");
                 Serial.println(value);
@@ -405,12 +415,14 @@ void loop() {
 
         // Misc Physical Control
 
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
         else if (commandID == CMD_DCMOTOR_CTRL) {
             if (canData.size() == 1) {
                 lastCtrlCmd = millis();
                 efCtrl(canData[0]);
             }
         }
+#endif
 
         else if (commandID == CMD_LASER_CTRL) {
             if (canData.size() == 1) {
@@ -502,15 +514,15 @@ void loop() {
             if (canData.size() == 1) {
                 lastCtrlCmd = millis();
                 // Defeat the evil analogWrite()
-                pinMode(MOTOR_IN1, OUTPUT);
-                pinMode(MOTOR_IN2, OUTPUT);
-                if (canData[0] >= 1) {
+                // pinMode(MOTOR_IN1, OUTPUT);
+                // pinMode(MOTOR_IN2, OUTPUT);
+                if (canData[0] >= -1) {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, HIGH);
                 } else if (canData[0] == 0) {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, LOW);
-                } else if (canData[0] <= -1) {
+                } else if (canData[0] <= 1) {
                     digitalWrite(MOTOR_IN1, HIGH);
                     digitalWrite(MOTOR_IN2, LOW);
                 }
@@ -674,8 +686,13 @@ void stopEverything() {
     // topLSS.limp();
     // bottomLSS.limp();
     // Stop EF motor
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     analogWrite(MOTOR_IN1, 0);
     analogWrite(MOTOR_IN2, 0);
+#else
+    digitalWrite(MOTOR_IN1, LOW);
+    digitalWrite(MOTOR_IN2, LOW);
+#endif
     // Stop lin ac
     digitalWrite(LINAC_RIN, LOW);
     digitalWrite(LINAC_FIN, LOW);
