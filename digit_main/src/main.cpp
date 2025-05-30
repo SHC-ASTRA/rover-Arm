@@ -437,11 +437,9 @@ void loop() {
         }
 
         else if (commandID == CMD_LSS_RESET) {
-            if (canData.size() == 1 && canData[0] == 1) {
-                lastCtrlCmd = millis();
-                topLSS.reset();
-                bottomLSS.reset();
-            }
+            lastCtrlCmd = millis();
+            topLSS.reset();
+            bottomLSS.reset();
         }
 
         // Submodule Specific
