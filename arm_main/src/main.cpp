@@ -286,9 +286,9 @@ void loop() {
         else if (commandID == CMD_REV_IDLE_MODE) {
             if (canData.size() == 1) {
                 if (canData[0] == 0)
-                    COMMS_UART.println("brake,on");
-                else if (canData[0] == 1)
                     COMMS_UART.println("brake,off");
+                else if (canData[0] == 1)
+                    COMMS_UART.println("brake,on");
             }
         }
         else if (commandID == CMD_ARM_IK_CTRL) {

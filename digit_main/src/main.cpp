@@ -20,6 +20,7 @@
 #endif
 
 #include "AstraMisc.h"
+#include "AstraNP.h"
 #include "AstraVicCAN.h"
 #include "DigitMainMCU.h"
 
@@ -46,6 +47,8 @@
 
 LSS topLSS = LSS(LSS_TOP_ID);
 LSS bottomLSS = LSS(LSS_BOTTOM_ID);
+
+AstraNeoPixel np(PIN_NEOPIXEL);
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 
@@ -82,6 +85,7 @@ int timeToGoal = 0;  // ms
 long lastFeedback = 0;  // ms
 long lastVoltRead = 0;
 long lastDataSend = 0;
+long lastNP = 0;
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 // Shake mode variables
@@ -131,6 +135,8 @@ void setup() {
     delay(1000);
     digitalWrite(LED_BUILTIN, LOW);
 
+    np.writeColor(COLOR_SETUP_START);
+
     // Laser
     pinMode(LASER_NMOS, OUTPUT);
     digitalWrite(LASER_NMOS, LOW);
@@ -145,8 +151,13 @@ void setup() {
     pinMode(MOTOR_IN1, OUTPUT);
     pinMode(MOTOR_IN2, OUTPUT);
     pinMode(MOTOR_FAULT, INPUT);  // External pull-up resistor
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     analogWrite(MOTOR_IN1, 0);
     analogWrite(MOTOR_IN2, 0);
+#else
+    digitalWrite(MOTOR_IN1, LOW);
+    digitalWrite(MOTOR_IN2, LOW);
+#endif
 
 
     //------------------//
@@ -155,21 +166,26 @@ void setup() {
 
     Serial.begin(SERIAL_BAUD);
 
-    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX))
+    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX)) {
         Serial.println("CAN bus started!");
-    else
+    } else {
         Serial.println("CAN bus failed!");
+        np.addStatus(STATUS_CAN_NOCONN, 30);
+    }
 
 
     //-----------//
     //  Sensors  //
     //-----------//
 
+    np.writeColor(COLOR_SETUP_SENSORS);
+
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-    if (!sht.begin(0x44)) {  // HUM/Temp
-        Serial.println("Couldn't find SHT31!");
-    } else {
+    if (sht.begin(0x44)) {  // HUM/Temp
         Serial.println("SHT31 initialized.");
+    } else {
+        Serial.println("Couldn't find SHT31!");
+        // np.addStatus(STATUS_SHT_NOCONN, 30);
     }
 #endif
 
@@ -179,6 +195,18 @@ void setup() {
     //--------------------//
 
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
+
+    //! Experimental!
+    if (topLSS.reset()) {
+        Serial.println("Top LSS successfully resetting.");
+    } else {
+        Serial.println("Top LSS not found!");
+    }
+    if (bottomLSS.reset()) {
+        Serial.println("Bottom LSS successfully resetting.");
+    } else {
+        Serial.println("Bottom LSS not found!");
+    }
 
     // 1 degree / 175 ms
     topLSS.setMaxSpeed(100);
@@ -192,6 +220,8 @@ void setup() {
     // SCABBARD NEO-550 motor
     neo550.attach(SPARK_PWM, REV_PWM_MIN, REV_PWM_MAX);
 #endif
+
+    np.writeColor(COLOR_SETUP_DONE);
 
     // Wait for LSS reboot
     delay(2000);
@@ -283,8 +313,19 @@ void loop() {
         lastFault = millis();  // Always check unless there has been a fault <1 second ago
         Serial.println("EF Motor fault detected: over-current, over-temperature, or under-voltage.");
         // Stop EF motor
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
         analogWrite(MOTOR_IN1, 0);
         analogWrite(MOTOR_IN2, 0);
+#else
+        digitalWrite(MOTOR_IN1, LOW);
+        digitalWrite(MOTOR_IN2, LOW);
+#endif
+    }
+
+    // Neopixel status update
+    if (millis() - lastNP > 50) {
+        lastNP = millis();
+        np.update();
     }
 
     // Wrist Yaw
@@ -364,7 +405,7 @@ void loop() {
         else if (commandID == CMD_REV_SET_DUTY) {
             if (canData.size() == 1) {
                 lastCtrlCmd = millis();
-                int value = map_d(canData[0], -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX);
+                int value = map_d(canData[0] / 100.0, -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX);
                 neo550.writeMicroseconds(value);
                 Serial.print("Setting REV duty to ");
                 Serial.println(value);
@@ -374,12 +415,14 @@ void loop() {
 
         // Misc Physical Control
 
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
         else if (commandID == CMD_DCMOTOR_CTRL) {
             if (canData.size() == 1) {
                 lastCtrlCmd = millis();
                 efCtrl(canData[0]);
             }
         }
+#endif
 
         else if (commandID == CMD_LASER_CTRL) {
             if (canData.size() == 1) {
@@ -394,11 +437,9 @@ void loop() {
         }
 
         else if (commandID == CMD_LSS_RESET) {
-            if (canData.size() == 1 && canData[0] == 1) {
-                lastCtrlCmd = millis();
-                topLSS.reset();
-                bottomLSS.reset();
-            }
+            lastCtrlCmd = millis();
+            topLSS.reset();
+            bottomLSS.reset();
         }
 
         // Submodule Specific
@@ -406,6 +447,23 @@ void loop() {
         else if (commandID == CMD_ARM_IK_TTG) {
             if (canData.size() == 1) {
                 timeToGoal = canData[0];
+            }
+        }
+
+        else if (commandID == CMD_DIGIT_LINAC_CTRL) {
+            if (canData.size() == 1) {
+                lastCtrlCmd = millis();
+
+                if (canData[0] == 1) {  // Extend
+                    digitalWrite(LINAC_RIN, HIGH);
+                    digitalWrite(LINAC_FIN, LOW);
+                } else if (canData[0] == 0) {  // Stop
+                    digitalWrite(LINAC_RIN, LOW);
+                    digitalWrite(LINAC_FIN, LOW);
+                } else if (canData[0] == -1) {  // Retract
+                    digitalWrite(LINAC_RIN, LOW);
+                    digitalWrite(LINAC_FIN, HIGH);
+                }
             }
         }
 
@@ -471,15 +529,15 @@ void loop() {
             if (canData.size() == 1) {
                 lastCtrlCmd = millis();
                 // Defeat the evil analogWrite()
-                pinMode(MOTOR_IN1, OUTPUT);
-                pinMode(MOTOR_IN2, OUTPUT);
-                if (canData[0] >= 1) {
+                // pinMode(MOTOR_IN1, OUTPUT);
+                // pinMode(MOTOR_IN2, OUTPUT);
+                if (canData[0] <= -1) {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, HIGH);
                 } else if (canData[0] == 0) {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, LOW);
-                } else if (canData[0] <= -1) {
+                } else if (canData[0] >= 1) {
                     digitalWrite(MOTOR_IN1, HIGH);
                     digitalWrite(MOTOR_IN2, LOW);
                 }
@@ -643,8 +701,13 @@ void stopEverything() {
     // topLSS.limp();
     // bottomLSS.limp();
     // Stop EF motor
+#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     analogWrite(MOTOR_IN1, 0);
     analogWrite(MOTOR_IN2, 0);
+#else
+    digitalWrite(MOTOR_IN1, LOW);
+    digitalWrite(MOTOR_IN2, LOW);
+#endif
     // Stop lin ac
     digitalWrite(LINAC_RIN, LOW);
     digitalWrite(LINAC_FIN, LOW);
