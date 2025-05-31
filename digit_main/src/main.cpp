@@ -450,6 +450,23 @@ void loop() {
             }
         }
 
+        else if (commandID == CMD_DIGIT_LINAC_CTRL) {
+            if (canData.size() == 1) {
+                lastCtrlCmd = millis();
+
+                if (canData[0] == 1) {  // Extend
+                    digitalWrite(LINAC_RIN, HIGH);
+                    digitalWrite(LINAC_FIN, LOW);
+                } else if (canData[0] == 0) {  // Stop
+                    digitalWrite(LINAC_RIN, LOW);
+                    digitalWrite(LINAC_FIN, LOW);
+                } else if (canData[0] == -1) {  // Retract
+                    digitalWrite(LINAC_RIN, LOW);
+                    digitalWrite(LINAC_FIN, HIGH);
+                }
+            }
+        }
+
         else if (commandID == CMD_DIGIT_WRIST_ROLL) {  // Wrist rotate
             if (canData.size() == 1 && (!isWristYawIK && wristYawDir == 0)) {
                 lastCtrlCmd = millis();
