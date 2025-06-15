@@ -46,7 +46,8 @@ AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED);
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED); 
 AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 
-ArmJoint axis0(&ax0_encoder, 140, -135, 135, 2125);  // Angle limits for ax0 not set
+// ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio, bool setInverted);
+ArmJoint axis0(&ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
 ArmJoint axis1(&ax1_encoder, 55, -60, 90, 5000);
 ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
 ArmJoint axis3(&ax3_encoder, 55, -90, 110, 2500);
