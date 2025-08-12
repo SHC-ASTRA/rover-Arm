@@ -194,7 +194,7 @@ void loop() {
         vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
     }
 
-    if (millis() - lastFeedback >= 500)
+    if (millis() - lastFeedback >= 100)
     {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);

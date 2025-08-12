@@ -32,6 +32,7 @@ class AstraArm {
         lastDutyCycles[3] = duty3;
     }
     inline void sendVelocity(float vel0, float vel1, float vel2, float vel3) {
+        vel0 = 0;
         MOTORSERIAL.printf("sendvelocity,%f,%f,%f,%f\n", vel0, vel1, vel2, vel3);
         lastVelocities[0] = vel0;
         lastVelocities[1] = vel1;
