@@ -32,7 +32,7 @@
 // Comment out to disable LED blinking
 #define BLINK
 
-#define LSS_GEAR_RATIO 3
+#define LSS_GEAR_RATIO 2
 
 #define LSS_TOP_ID 1
 #define LSS_BOTTOM_ID 2
@@ -196,21 +196,16 @@ void setup() {
 
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
 
-    //! Experimental!
-    if (topLSS.reset()) {
-        Serial.println("Top LSS successfully resetting.");
-    } else {
+    topLSS.getVoltage();
+    if (topLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Top LSS not found!");
-    }
-    if (bottomLSS.reset()) {
-        Serial.println("Bottom LSS successfully resetting.");
-    } else {
+    bottomLSS.getVoltage();
+    if (bottomLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Bottom LSS not found!");
-    }
 
     // 1 degree / 175 ms
-    topLSS.setMaxSpeed(100);
-    bottomLSS.setMaxSpeed(100);
+    // topLSS.setMaxSpeed(100);
+    // bottomLSS.setMaxSpeed(100);
 
     // Complete LSS configuration
     // topLSS.reset();
@@ -265,9 +260,16 @@ void loop() {
 #endif
     }
 
+    // IK Angles
     if (millis() - lastFeedback > 500) {
         lastFeedback = millis();
-        vicCAN.send(CMD_ARM_ENCODER_ANGLES, wristYaw);  // Currently just 0
+
+        float topLSSAngle = topLSS.getPosition() / 10;
+        float bottomLSSAngle = bottomLSS.getPosition() / 10;
+
+        float wristYaw = (topLSSAngle - bottomLSSAngle);
+        float wristRoll = (topLSSAngle + bottomLSSAngle) / (2 * LSS_GEAR_RATIO);
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES, wristYaw, wristRoll);
     }
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
@@ -444,6 +446,23 @@ void loop() {
 
         // Submodule Specific
 
+        else if (commandID == CMD_ARM_IK_CTRL) {
+            if (canData.size() == 2) {
+                lastCtrlCmd = millis();
+                
+                float targetYaw = canData[0];
+                float targetRoll = canData[1];
+
+                float k = 1;  // Mechanical constant
+
+                float s1Target = LSS_GEAR_RATIO * targetRoll + (targetYaw / (2 * k));
+                float s2Target = LSS_GEAR_RATIO * targetRoll - (targetYaw / (2 * k));
+
+                topLSS.move(s1Target * 10);
+                bottomLSS.move(s2Target * 10);
+            }
+        }
+
         else if (commandID == CMD_ARM_IK_TTG) {
             if (canData.size() == 1) {
                 timeToGoal = canData[0];
@@ -506,6 +525,35 @@ void loop() {
                         topLSS.wheel(20);
                         bottomLSS.wheel(-20);
                     }
+                }
+            }
+        }
+
+        else if (commandID == CMD_ARM_MANUAL) {  // Wrist roll + yaw
+            if (canData.size() == 2) {
+                lastCtrlCmd = millis();
+                int yawDir = canData[0];
+                int rollDir = canData[1];
+
+                if (yawDir == 0 && rollDir == 0) {
+                    topLSS.wheel(0);
+                    bottomLSS.wheel(0);
+                } else {
+                    int yawSpeed = 0;
+                    int rollSpeed = 0;
+
+                    if (yawDir == 1)
+                        yawSpeed = -20;
+                    else if (yawDir == -1)
+                        yawSpeed = 20;
+
+                    if (rollDir == 1)
+                        rollSpeed = -20 * LSS_GEAR_RATIO;
+                    else if (rollDir == -1)
+                        rollSpeed = 20 * LSS_GEAR_RATIO;
+
+                    topLSS.wheel(yawSpeed + rollSpeed);
+                    bottomLSS.wheel(-yawSpeed + rollSpeed);
                 }
             }
         }
