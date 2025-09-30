@@ -12,6 +12,7 @@
 
 #include <Arduino.h>
 #include <LSS.h>
+#include <math.h>
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 #    include <SPI.h>    // Fixes compilation issue with Adafruit BusIO
@@ -72,15 +73,17 @@ long lastCtrlCmd = millis();
 
 long lastFault = 0;
 
-long lastWristYawIter = 0;  // ms
+long lastWristCtrl = 0;  // ms
 
-int wristYaw = 0;  // degrees; Current yaw angle of wrist
-int wristYawDir = 0;  // Direction of wrist yaw: 1 = Close, 0 = Stop, -1 = Open
-int wristRollDir = 0;
+bool isWristCtrlIK = false;  // Is IK controlling wrist now?
+float wristIKYawGoal = 0;  // degrees; Goal for wristYaw from IK
+float wristIKRollGoal = 0;  // degrees; Goal for wristRoll from IK
 
-bool isWristYawIK = false;  // Is IK controlling yaw now?
-int wristYawIKGoal = 0;  // degrees; Goal for wristYaw from IK
-int timeToGoal = 0;  // ms
+float lastWristYaw = 0;  // degrees; Last known wrist yaw angle
+float lastWristRoll = 0;  // degrees; Last known wrist roll angle
+
+int wristManYawDir = 0;  // Manual wrist yaw direction - 1, 0, -1
+int wristManRollDir = 0;  // Manual wrist roll direction - 1, 0, -1
 
 long lastFeedback = 0;  // ms
 long lastVoltRead = 0;
@@ -107,6 +110,7 @@ int shakeDir = 1;                     // Positive or negative to shake in open o
 
 void stopEverything();
 void efCtrl(int dir);
+float clamp_angle(float angle);
 
 
 //------------------------------------------------------------------------------------------------//
@@ -263,13 +267,7 @@ void loop() {
     // IK Angles
     if (millis() - lastFeedback > 500) {
         lastFeedback = millis();
-
-        float topLSSAngle = topLSS.getPosition() / 10;
-        float bottomLSSAngle = bottomLSS.getPosition() / 10;
-
-        float wristYaw = (topLSSAngle - bottomLSSAngle);
-        float wristRoll = (topLSSAngle + bottomLSSAngle) / (2 * LSS_GEAR_RATIO);
-        vicCAN.send(CMD_ARM_ENCODER_ANGLES, wristYaw, wristRoll);
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES, lastWristYaw, lastWristRoll);
     }
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
@@ -330,33 +328,54 @@ void loop() {
         np.update();
     }
 
-    // Wrist Yaw
-    // if (millis() - lastWristYawIter > 175 && (isWristYawIK || wristYawDir != 0)) {
-    //     lastWristYawIter = millis();
+    // Wrist Control
+    if (millis() - lastWristCtrl > 100) {
+        lastWristCtrl = millis();
 
-    //     if (isWristYawIK && wristYaw != wristYawIKGoal) {  // IK Yaw Control
-    //         // TODO: decimal?
-    //         if (wristYaw < wristYawIKGoal) {
-    //             wristYaw += 1;
-    //             topLSS.moveRelative(-20);
-    //             bottomLSS.moveRelative(20);
-    //         } else if (wristYaw > wristYawIKGoal) {
-    //             wristYaw -= 1;
-    //             topLSS.moveRelative(20);
-    //             bottomLSS.moveRelative(-20);
-    //         }
-    //     } else if (!isWristYawIK && wristYawDir != 0) {  // Manual Yaw Control
-    //         if (wristYawDir == 1) {
-    //             wristYaw += 1;
-    //             topLSS.moveRelative(-20);
-    //             bottomLSS.moveRelative(20);
-    //         } else if (wristYawDir == -1) {
-    //             wristYaw -= 1;
-    //             topLSS.moveRelative(20);
-    //             bottomLSS.moveRelative(-20);
-    //         }
-    //     }
-    // }
+        float topLSSAngle = topLSS.getPosition() / 10.0;
+        float bottomLSSAngle = bottomLSS.getPosition() / 10.0;
+
+        lastWristYaw = clamp_angle(topLSSAngle - bottomLSSAngle) / 2.0;
+        lastWristRoll = (topLSSAngle + bottomLSSAngle) / (2 * LSS_GEAR_RATIO);
+
+        // IK Control
+        if (isWristCtrlIK) {
+            float k = 1;  // Mechanical constant
+
+            float topTarget = LSS_GEAR_RATIO * wristIKRollGoal + (wristIKYawGoal / (2 * k));
+            float bottomTarget = LSS_GEAR_RATIO * wristIKRollGoal - (wristIKYawGoal / (2 * k));
+
+            topLSS.move(topTarget * 10.0);
+            bottomLSS.move(bottomTarget * 10.0);
+        }
+        // Manual Control
+        else {
+            if (wristManRollDir == 0 && wristManYawDir == 0) {  // Stop as soon as possible if requested
+                topLSS.wheel(0);
+                bottomLSS.wheel(0);
+            } else {  // Still moving
+                // Yaw bounds check
+                if ((lastWristYaw < -70 && wristManYawDir == 1) || (lastWristYaw > 70 && wristManYawDir == -1))
+                    wristManYawDir = 0;
+
+                int yawSpeed = 0;
+                int rollSpeed = 0;
+
+                if (wristManYawDir == 1)
+                    yawSpeed = -20;
+                else if (wristManYawDir == -1)
+                    yawSpeed = 20;
+
+                if (wristManRollDir == 1)
+                    rollSpeed = -20 * LSS_GEAR_RATIO;
+                else if (wristManRollDir == -1)
+                    rollSpeed = 20 * LSS_GEAR_RATIO;
+
+                topLSS.wheel(yawSpeed + rollSpeed);
+                bottomLSS.wheel(-yawSpeed + rollSpeed);
+            }
+        }
+    }
 
 
     //-------------//
@@ -449,23 +468,10 @@ void loop() {
         else if (commandID == CMD_ARM_IK_CTRL) {
             if (canData.size() == 2) {
                 lastCtrlCmd = millis();
-                
-                float targetYaw = canData[0];
-                float targetRoll = canData[1];
 
-                float k = 1;  // Mechanical constant
-
-                float s1Target = LSS_GEAR_RATIO * targetRoll + (targetYaw / (2 * k));
-                float s2Target = LSS_GEAR_RATIO * targetRoll - (targetYaw / (2 * k));
-
-                topLSS.move(s1Target * 10);
-                bottomLSS.move(s2Target * 10);
-            }
-        }
-
-        else if (commandID == CMD_ARM_IK_TTG) {
-            if (canData.size() == 1) {
-                timeToGoal = canData[0];
+                wristIKYawGoal = canData[0];
+                wristIKRollGoal = canData[1];
+                isWristCtrlIK = true;
             }
         }
 
@@ -486,74 +492,18 @@ void loop() {
             }
         }
 
-        else if (commandID == CMD_DIGIT_WRIST_ROLL) {  // Wrist rotate
-            if (canData.size() == 1 && (!isWristYawIK && wristYawDir == 0)) {
-                lastCtrlCmd = millis();
-
-                wristRollDir = canData[0];
-
-                if (canData[0] == 1) {
-                    topLSS.wheel(-20 * LSS_GEAR_RATIO);
-                    bottomLSS.wheel(-20 * LSS_GEAR_RATIO);
-                } else if (canData[0] == 0 && wristYawDir == 0) {
-                    topLSS.wheel(0);
-                    bottomLSS.wheel(0);
-                } else if (canData[0] == -1) {
-                    topLSS.wheel(20 * LSS_GEAR_RATIO);
-                    bottomLSS.wheel(20 * LSS_GEAR_RATIO);
-                }
-            }
-        }
-
-        else if (commandID == CMD_DIGIT_IK_CTRL) {  // Wrist yaw
-            if (canData.size() == 2) {
-                lastCtrlCmd = millis();
-                // isWristYawIK = static_cast<bool>(canData[0]);
-                // wristYawDir = canData[1];
-                // wristYawIKGoal = canData[1];
-
-                if (canData[0] == 0) {  // Manual control
-                    wristYawDir = canData[1];
-
-                    if (canData[1] == 1) {
-                        topLSS.wheel(-20);
-                        bottomLSS.wheel(20);
-                    } else if (canData[1] == 0 && wristRollDir == 0) {
-                        topLSS.wheel(0);
-                        bottomLSS.wheel(0);
-                    } else if (canData[1] == -1) {
-                        topLSS.wheel(20);
-                        bottomLSS.wheel(-20);
-                    }
-                }
-            }
-        }
-
         else if (commandID == CMD_ARM_MANUAL) {  // Wrist roll + yaw
             if (canData.size() == 2) {
                 lastCtrlCmd = millis();
-                int yawDir = canData[0];
-                int rollDir = canData[1];
 
-                if (yawDir == 0 && rollDir == 0) {
+                // Set globals for 10 Hz controller timer to take care of
+                wristManYawDir = canData[0];
+                wristManRollDir = canData[1];
+                isWristCtrlIK = false;  // Disable IK if doing manual control
+
+                if (wristManYawDir == 0 && wristManRollDir == 0) {
                     topLSS.wheel(0);
                     bottomLSS.wheel(0);
-                } else {
-                    int yawSpeed = 0;
-                    int rollSpeed = 0;
-
-                    if (yawDir == 1)
-                        yawSpeed = -20;
-                    else if (yawDir == -1)
-                        yawSpeed = 20;
-
-                    if (rollDir == 1)
-                        rollSpeed = -20 * LSS_GEAR_RATIO;
-                    else if (rollDir == -1)
-                        rollSpeed = 20 * LSS_GEAR_RATIO;
-
-                    topLSS.wheel(yawSpeed + rollSpeed);
-                    bottomLSS.wheel(-yawSpeed + rollSpeed);
                 }
             }
         }
@@ -778,4 +728,12 @@ void efCtrl(int dir) {
         analogWrite(MOTOR_IN1, 0);
         analogWrite(MOTOR_IN2, 225);
     }
+}
+
+float clamp_angle(float angle) {
+    // https://stackoverflow.com/a/11498248
+    angle = fmod(angle + 180, 360);
+    if (angle < 0)
+        angle += 360;
+    return angle - 180;
 }
