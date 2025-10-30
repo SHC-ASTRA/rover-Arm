@@ -200,6 +200,7 @@ void setup() {
 
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
 
+    // Check for a connection to the Lynxmotion servos
     topLSS.getVoltage();
     if (topLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Top LSS not found!");
@@ -207,13 +208,13 @@ void setup() {
     if (bottomLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Bottom LSS not found!");
 
-    // 1 degree / 175 ms
-    // topLSS.setMaxSpeed(100);
-    // bottomLSS.setMaxSpeed(100);
-
-    // Complete LSS configuration
-    // topLSS.reset();
-    // bottomLSS.reset();
+    /* LSS Configuration:
+        A persistent configuration is expected to be saved on both LSS servos.
+        - Max speed: 10 deg/s (1 degree / 175 ms)
+        - Origin offset: unique to either servo's mounting
+        - LED color: blue for one of them, white for the other (i forgor)
+        - ID: 1 for top, 2 for bottom
+    */
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     // SCABBARD NEO-550 motor
