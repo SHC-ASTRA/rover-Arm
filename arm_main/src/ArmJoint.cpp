@@ -15,6 +15,8 @@ ArmJoint::ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, f
     inverted = setInverted;
 
     targetAngle = 0;
+    targetVelocity = 0;
+    setpointType = SETPOINT_ANGLE;
     lastEncoderAngle = 0;
     lastEncoderReadTime = 0;
     minAngle = setMinAngle;
@@ -54,19 +56,36 @@ float ArmJoint::updateIKMotion() {
     if (static_cast<long>(millis()) - lastEncoderReadTime > dt)
         return 0;  // Don't move if encoder data is too old
 
-    double pidTargetAngle = targetAngle;  // Will come from S-curve
+    // Calculate motor RPM required to achieve either absolute angle setpoint or velocity setpoint
+    float motorRPM = 0;
+    if (setpointType == SETPOINT_ANGLE) {
+        double pidTargetAngle = targetAngle;  // Will come from S-curve
 
-    float motorRPM = pid(targetAngle);
-    if (motorRPM == 0) {
+        motorRPM = pid(targetAngle);
+    } else {
+        if (targetVelocity == 0)
+            return 0;
+
+        // Perform bounds checking -- joint shall not exceed min/max angles within one second
+        float projectedAngle = lastEffectiveAngle + targetVelocity;
+        if (projectedAngle < minAngle) {
+            targetVelocity = minAngle - lastEffectiveAngle;
+        } else if (projectedAngle > maxAngle) {
+            targetVelocity = maxAngle - lastEffectiveAngle;
+        }
+
+        // Convert deg/sec to motor RPM
+        motorRPM = (targetVelocity * 60.0 / 360.0) * float(gearRatio);
+    }
+    if (motorRPM == 0)
         return 0;
-    }
 
-    motorRPM = clamp_velocity(motorRPM);  // Keep non-zero velocity within MIN_SPEED and MAX_SPEED
+    motorRPM = clamp_velocity(motorRPM);  // Bound motor RPM within MIN_SPEED and MAX_SPEED
 
-    if (inverted) {
-        motorRPM = -motorRPM;
-    }
-    return -1 * motorRPM;
+    if (inverted)
+        motorRPM *= -1;
+
+    return -1 * motorRPM;  // Motors turn in the opposite direction of our joint angle convention
 }
 
 

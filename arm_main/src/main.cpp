@@ -292,6 +292,9 @@ void loop() {
                     COMMS_UART.println("brake,on");
             }
         }
+
+        // Submodule-specific
+
         else if (commandID == CMD_ARM_IK_CTRL) {
             if (canData.size() == 4) {
 #ifdef ARM_DEBUG
@@ -328,6 +331,16 @@ void loop() {
                     speeds[i] = canData[i] * 0.75;
                 }
                 arm.runDuty(speeds);
+            }
+        }
+        else if (commandID == 43) {
+            if (canData.size() == 4) {
+                lastCtrlCmd = millis();
+                float velocities[4] = {0};
+                for (int i = 0; i < 4; i++) {
+                    velocities[i] = canData[i];
+                }
+                arm.setTargetVelocities(velocities);
             }
         }
     }
