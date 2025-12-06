@@ -49,8 +49,8 @@ AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 // ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio, bool setInverted);
 ArmJoint axis0(&ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
 ArmJoint axis1(&ax1_encoder, 55, -60, 90, 5000);
-ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
-ArmJoint axis3(&ax3_encoder, 7.5, -90, 110, 2500);
+ArmJoint axis2(&ax2_encoder, 245.3, -115, 115, 3750);
+ArmJoint axis3(&ax3_encoder, 322.7, -90, 110, 2500);
 ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
 AstraArm arm(joints);
