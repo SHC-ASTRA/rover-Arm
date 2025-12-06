@@ -68,7 +68,9 @@ float ArmJoint::updateIKMotion() {
 
         // Perform bounds checking -- joint shall not exceed min/max angles within one second
         float projectedAngle = lastEffectiveAngle + targetVelocity;
-        if (projectedAngle < minAngle) {
+        if (lastEffectiveAngle > maxAngle || lastEffectiveAngle < minAngle) {
+            targetVelocity = 0;
+        } else if (projectedAngle < minAngle) {
             targetVelocity = minAngle - lastEffectiveAngle;
         } else if (projectedAngle > maxAngle) {
             targetVelocity = maxAngle - lastEffectiveAngle;

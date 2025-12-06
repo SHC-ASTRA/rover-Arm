@@ -201,6 +201,7 @@ void loop() {
 #ifdef DEBUG
         Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
 #endif
+        // TODO: publish joint velocities from ArmJoints from REV velocity feedback with gear ratios
     }
 
     // Safety timeout if no ctrl command for 2 seconds
@@ -333,12 +334,12 @@ void loop() {
                 arm.runDuty(speeds);
             }
         }
-        else if (commandID == 43) {
+        else if (commandID == 43) {  // IK Velocity setpoint
             if (canData.size() == 4) {
                 lastCtrlCmd = millis();
                 float velocities[4] = {0};
                 for (int i = 0; i < 4; i++) {
-                    velocities[i] = canData[i];
+                    velocities[i] = canData[i] == 0 ? 0 : canData[i] / 10.0;
                 }
                 arm.setTargetVelocities(velocities);
             }
@@ -494,6 +495,7 @@ void loop() {
 
         if (checkArgs(args, 4) && args[0] == "motorstatus") {
             vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(), args[4].toInt());
+            // TODO: for (int i = 1; i <= 4; i++) update ArmJoints to compensate for gear ratios and publish joint velocities
         }
     }
 }
