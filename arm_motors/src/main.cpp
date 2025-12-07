@@ -239,12 +239,15 @@ void loop() {
         lastMotorStatus = millis();
 
         for (int i = 0; i < MOTOR_AMOUNT; i++) {
-            if (millis() - motorList[i]->status1.timestamp >= 500) {
+            if (millis() - motorList[i]->status1.timestamp < 500) {
                 COMMS_UART.printf("motorstatus,%d,%d,%d,%d\n", motorList[i]->getID(), int(motorList[i]->status1.motorTemperature * 10),
                     int(motorList[i]->status1.busVoltage * 10), int(motorList[i]->status1.outputCurrent * 10));
-                    if (millis() - motorList[i]->status2.timestamp >= 500) {
-                        COMMS_UART.printf("motorpos,%d,%d\n", motorList[i]->getID(), motorList[i]->status2.sensorPosition);
-                    }
+            }
+            if (millis() - motorList[i]->status1.timestamp < 500
+                && millis() - motorList[i]->status2.timestamp < 500)
+            {
+                COMMS_UART.printf("motormotion,%d,%d,%d\n", motorList[i]->getID(), int(motorList[i]->status2.sensorPosition),
+                    int(motorList[i]->status1.sensorVelocity));
             }
         }
     }

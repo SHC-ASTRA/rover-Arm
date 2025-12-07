@@ -46,18 +46,25 @@ class ArmJoint {
 //    private:
    public:
     float zeroAngle;            // Raw encoder angle reading that corresponds to 0 degrees
-    float targetAngle;          // Degrees from zeroAngle
-    float targetVelocity;       // Degrees per second
-    SetpointType setpointType;  // Angle (deg) or angular velocity (deg/s)
-    float lastEffectiveAngle;   // Last encoder angl reading, adjusted with zeroAngle
-    float lastEncoderAngle;     // Last raw encoder angle reading
-    long lastEncoderReadTime;   // millis() value of last encoder read
-    float integral;
-    float prevError;
     float minAngle;
     float maxAngle;
+
+    SetpointType setpointType;  // Angle (deg) or angular velocity (deg/s)
+    float targetAngle;          // Degrees from zeroAngle
+    float lastEffectiveAngle;   // Last encoder angle reading, adjusted with zeroAngle
+    float lastEncoderAngle;     // Last raw encoder angle reading
+    long lastEncoderReadTime;   // millis() value of last encoder read
+    float targetVelocity;       // Degrees per second
+    float lastREVVelocity;      // Last motor RPM reported directly by the Sparkmax
+    float lastDegSVelocity;     // Last joint velocity in deg/s (converted from lastREVVelocity)
+    long lastREVReadTime;       // millis() value of last Sparkmax velocity read
+
+    float integral;
+    float prevError;
+
     long timeToGoal;
     long goalTime;  // millis() value when the arm should be at its goal
+
     int gearRatio;
     bool inverted;
     AS5047P* encoder;
@@ -67,6 +74,7 @@ class ArmJoint {
    public:
     ArmJoint(AS5047P* setEncoder, float setZeroAngle = 0, float setMinAngle = -115, float setMaxAngle = 115, int setGearRatio = 1, bool setInverted = false);
     float readAngle();
+    void readREVVelocity(float rpm);
     float updateIKMotion();
 
     inline void setTargetAngle(float angle) {

@@ -486,16 +486,18 @@ void loop() {
         std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
         parseInput(input, args);   // Separate `input` by commas and place into args vector
 
-#ifdef ARM_DEBUG
-        Serial.println("|------------------------------------------------------|");
-        Serial.print("| From Motor MCU Recieved: ");
-#endif
-        Serial.print("Motor MCU:\t");
+        Serial.print("Motor MCU: ");
         Serial.println(input);
 
         if (checkArgs(args, 4) && args[0] == "motorstatus") {
             vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(), args[4].toInt());
-            // TODO: for (int i = 1; i <= 4; i++) update ArmJoints to compensate for gear ratios and publish joint velocities
+        }
+
+        else if (checkArgs(args, 3) && args[0] == "motormotion") {
+            vicCAN.send(58, args[1].toInt(), args[2].toInt(), args[3].toInt());
+            for (int i = 0; i < 3; i++) {
+                joints[i]->readREVVelocity(args[i + 1].toFloat());
+            }
         }
     }
 }

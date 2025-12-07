@@ -35,6 +35,15 @@ float ArmJoint::readAngle() {
     return lastEffectiveAngle;
 }
 
+void ArmJoint::readREVVelocity(float rpm) {
+    rpm *= -1;
+    lastREVVelocity = rpm;
+    lastREVReadTime = millis();
+
+    // Convert motor RPM to joint deg/s
+    lastDegSVelocity = (rpm * 360.0 / 60.0) / float(gearRatio);
+}
+
 double ArmJoint::pid(double pTargetAngle) {
     double error = clamp_angle(pTargetAngle - lastEffectiveAngle);
     if (abs(error) < PRECISION)
