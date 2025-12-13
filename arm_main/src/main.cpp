@@ -201,7 +201,7 @@ void loop() {
 #ifdef DEBUG
         Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
 #endif
-        // TODO: publish joint velocities from ArmJoints from REV velocity feedback with gear ratios
+        vicCAN.send(59, axis0.lastDegSVelocity * 100, axis1.lastDegSVelocity * 100, axis2.lastDegSVelocity * 100, axis3.lastDegSVelocity * 100);
     }
 
     // Safety timeout if no ctrl command for 2 seconds
