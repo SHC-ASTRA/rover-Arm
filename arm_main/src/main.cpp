@@ -198,10 +198,10 @@ void loop() {
     {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
+        vicCAN.send(59, axis0.lastDegSVelocity * 100, axis1.lastDegSVelocity * 100, axis2.lastDegSVelocity * 100, axis3.lastDegSVelocity * 100);
 #ifdef DEBUG
         Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
 #endif
-        vicCAN.send(59, axis0.lastDegSVelocity * 100, axis1.lastDegSVelocity * 100, axis2.lastDegSVelocity * 100, axis3.lastDegSVelocity * 100);
     }
 
     // Safety timeout if no ctrl command for 2 seconds
@@ -495,9 +495,8 @@ void loop() {
 
         else if (checkArgs(args, 3) && args[0] == "motormotion") {
             vicCAN.send(58, args[1].toInt(), args[2].toInt(), args[3].toInt());
-            for (int i = 0; i < 3; i++) {
-                joints[i]->readREVVelocity(args[i + 1].toFloat());
-            }
+            if (args[1].toInt() >= 0 && args[1].toInt() <= 3)
+                joints[args[1].toInt()]->readREVVelocity(args[3].toFloat());
         }
     }
 }
