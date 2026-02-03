@@ -201,10 +201,18 @@ void setup() {
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
 
     // Check for a connection to the Lynxmotion servos
+<<<<<<< HEAD
     topLSS.getVoltage();
     if (topLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Top LSS not found!");
     bottomLSS.getVoltage();
+=======
+    Serial.println(topLSS.getVoltage());
+    Serial.println("Hello World");
+    if (topLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
+        Serial.println("Top LSS not found!");
+    Serial.println(bottomLSS.getVoltage());
+>>>>>>> c569561 (Added feedback for lss temp and current, still working on math)
     if (bottomLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Bottom LSS not found!");
 
@@ -245,6 +253,10 @@ void setup() {
 //                                                 //
 //-------------------------------------------------//
 void loop() {
+<<<<<<< HEAD
+=======
+    
+>>>>>>> c569561 (Added feedback for lss temp and current, still working on math)
     //----------//
     //  Timers  //
     //----------//
@@ -271,6 +283,16 @@ void loop() {
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, lastWristYaw, lastWristRoll);
     }
 
+<<<<<<< HEAD
+=======
+    // LSS Current and Temp
+    if (millis() - lastFeedback > 500) {
+        lastFeedback = millis();
+        vicCAN.send(CMD_LSS_FEEDBACK, topLSS.getCurrent(), bottomLSS.getCurrent(), 
+                                      topLSS.getTemperature(), bottomLSS.getTemperature());
+    }
+
+>>>>>>> c569561 (Added feedback for lss temp and current, still working on math)
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     // Telemetry
     if (millis() - lastDataSend >= 1000) {
@@ -378,6 +400,7 @@ void loop() {
         }
     }
 
+    // RPM (Still working on math)
 
     //-------------//
     //  CAN Input  //
@@ -648,7 +671,11 @@ void loop() {
                     bottomLSS.moveRelative(args[4].toInt());
                     Serial.print('j');
                     Serial.print(args[3].toInt());
+<<<<<<< HEAD
                     Serial.print(' ');
+=======
+                    Serial.print('k');
+>>>>>>> c569561 (Added feedback for lss temp and current, still working on math)
                     Serial.println(args[4].toInt());
                 } else if (args[2] == "ik") {
                     Serial.println("IK not implemented yet");
