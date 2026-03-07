@@ -274,14 +274,14 @@ void loop() {
     // LSS RPM
     if (millis() - lastRPM > 500) {
         lastRPM = millis();
-        vicCAN.send(CMD_ARM_RPM_FEEDBACK, wristYawRPM, wristRollRPM);
+        vicCAN.send(58, wristYawRPM, wristRollRPM); // TODO: Set CMD_ARM_RPM_FEEDBACK to 58
     }
 
     // LSS Current and Temp
     if (millis() - lastFeedback > 500) {
         lastFeedback = millis();
-        vicCAN.send(CMD_LSS_FEEDBACK, topLSS.getCurrent(), bottomLSS.getCurrent(), 
-                                      topLSS.getTemperature(), bottomLSS.getTemperature());
+        vicCAN.send(59, topLSS.getCurrent(), bottomLSS.getCurrent(), 
+                                      topLSS.getTemperature(), bottomLSS.getTemperature()); // TODO: Set CMD_LSS_FEEDBACK to 59
     }
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
@@ -352,6 +352,12 @@ void loop() {
         lastWristYaw = clamp_angle(topLSSAngle - bottomLSSAngle) / 2.0;
         lastWristRoll = (topLSSAngle + bottomLSSAngle) / (2 * LSS_GEAR_RATIO);
 
+        float topRPM = topLSS.getSpeedRPM();
+        float bottomRPM = bottomLSS.getSpeedRPM();
+
+        wristYawRPM  = (topRPM - bottomRPM) / 2.0;
+        wristRollRPM = (topRPM + bottomRPM) / (2 * LSS_GEAR_RATIO);
+
         // IK Control
         if (isWristCtrlIK) {
             float k = 1;  // Mechanical constant
@@ -390,13 +396,6 @@ void loop() {
             }
         }
     }
-
-    // RPM (Still working on math)
-    float topRPM = topLSS.getSpeedRPM();
-    float bottomRPM = bottomLSS.getSpeedRPM();
-
-    wristYawRPM  = (topRPM - bottomRPM) / 2.0;
-    wristRollRPM = (topRPM + bottomRPM) / (2 * LSS_GEAR_RATIO);
 
     //-------------//
     //  CAN Input  //
