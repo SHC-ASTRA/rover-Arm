@@ -194,7 +194,7 @@ void loop() {
         vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
     }
 
-    if (millis() - lastFeedback >= 100)
+    if (millis() - lastFeedback >= 250)
     {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
@@ -494,9 +494,14 @@ void loop() {
         }
 
         else if (checkArgs(args, 3) && args[0] == "motormotion") {
-            vicCAN.send(58, args[1].toInt(), args[2].toInt(), args[3].toInt());
-            if (args[1].toInt() >= 0 && args[1].toInt() <= 3)
-                joints[args[1].toInt()]->readREVVelocity(args[3].toFloat());
+            int motorId = args[1].toInt();
+            int motorPos = args[2].toInt();
+            int motorRPM = args[3].toInt();
+            vicCAN.send(58, motorId, motorPos, motorRPM);
+            if (motorId >= 1 && motorId <= 3)
+                joints[motorId]->readREVVelocity(motorRPM);
+            else if (motorId == 4)  // Axis Zero's ID is 4, not 0
+                joints[0]->readREVVelocity(motorRPM);
         }
     }
 }

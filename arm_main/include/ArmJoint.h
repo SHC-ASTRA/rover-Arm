@@ -74,7 +74,7 @@ class ArmJoint {
    public:
     ArmJoint(AS5047P* setEncoder, float setZeroAngle = 0, float setMinAngle = -115, float setMaxAngle = 115, int setGearRatio = 1, bool setInverted = false);
     float readAngle();
-    void readREVVelocity(float rpm);
+    void readREVVelocity(int rpm);
     float updateIKMotion();
 
     inline void setTargetAngle(float angle) {

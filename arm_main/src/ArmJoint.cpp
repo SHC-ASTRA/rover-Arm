@@ -35,13 +35,15 @@ float ArmJoint::readAngle() {
     return lastEffectiveAngle;
 }
 
-void ArmJoint::readREVVelocity(float rpm) {
+void ArmJoint::readREVVelocity(int rpm) {
     rpm *= -1;
     lastREVVelocity = rpm;
     lastREVReadTime = millis();
 
     // Convert motor RPM to joint deg/s
-    lastDegSVelocity = (rpm * 360.0 / 60.0) / float(gearRatio);
+    // Lowest gear ratio is 468, largest is 5000
+    // Meaning, in practice, values range from 6.0 to 128.2
+    lastDegSVelocity = (float(rpm) * 6.0) / float(gearRatio);
 }
 
 double ArmJoint::pid(double pTargetAngle) {
