@@ -269,21 +269,11 @@ void loop() {
 #endif
     }
 
-    // IK Angles
+    // Feedback
     if (millis() - lastFeedback > 500) {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, lastWristYaw, lastWristRoll);
-    }
-
-    // LSS RPM
-    if (millis() - lastFeedback > 500) {
-        lastFeedback = millis();
         vicCAN.send(58, wristYawRPM, wristRollRPM); // TODO: Set CMD_ARM_RPM_FEEDBACK to 58
-    }
-
-    // LSS Current and Temp
-    if (millis() - lastFeedback > 500) {
-        lastFeedback = millis();
         vicCAN.send(59, topLSS.getCurrent(), bottomLSS.getCurrent(), 
                                       topLSS.getTemperature(), bottomLSS.getTemperature()); // TODO: Set CMD_LSS_FEEDBACK to 59
     }
