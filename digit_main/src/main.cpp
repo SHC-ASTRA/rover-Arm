@@ -92,7 +92,6 @@ long lastFeedback = 0;  // ms
 long lastVoltRead = 0;
 long lastDataSend = 0;
 long lastNP = 0;
-long lastRPM = 0;
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 // Shake mode variables
@@ -206,7 +205,6 @@ void setup() {
 
     // Check for a connection to the Lynxmotion servos
     Serial.println(topLSS.getVoltage());
-    Serial.println("Hello World");
     if (topLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Top LSS not found!");
     Serial.println(bottomLSS.getVoltage());
@@ -271,9 +269,15 @@ void loop() {
 #endif
     }
 
+    // IK Angles
+    if (millis() - lastFeedback > 500) {
+        lastFeedback = millis();
+        vicCAN.send(CMD_ARM_ENCODER_ANGLES, lastWristYaw, lastWristRoll);
+    }
+
     // LSS RPM
-    if (millis() - lastRPM > 500) {
-        lastRPM = millis();
+    if (millis() - lastFeedback > 500) {
+        lastFeedback = millis();
         vicCAN.send(58, wristYawRPM, wristRollRPM); // TODO: Set CMD_ARM_RPM_FEEDBACK to 58
     }
 
