@@ -85,6 +85,9 @@ float lastWristRoll = 0;  // degrees; Last known wrist roll angle
 int wristManYawDir = 0;  // Manual wrist yaw direction - 1, 0, -1
 int wristManRollDir = 0;  // Manual wrist roll direction - 1, 0, -1
 
+float wristYawRPM = 0;  // Wrist yaw rpm
+float wristRollRPM = 0;  // Wrist roll rpm
+
 long lastFeedback = 0;  // ms
 long lastVoltRead = 0;
 long lastDataSend = 0;
@@ -201,10 +204,10 @@ void setup() {
     LSS::initBus(LSS_SERIAL, LSS_DefaultBaud);
 
     // Check for a connection to the Lynxmotion servos
-    topLSS.getVoltage();
+    Serial.println(topLSS.getVoltage());
     if (topLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Top LSS not found!");
-    bottomLSS.getVoltage();
+    Serial.println(bottomLSS.getVoltage());
     if (bottomLSS.getLastCommStatus() != LSS_CommStatus_ReadSuccess)
         Serial.println("Bottom LSS not found!");
 
@@ -245,6 +248,7 @@ void setup() {
 //                                                 //
 //-------------------------------------------------//
 void loop() {
+    
     //----------//
     //  Timers  //
     //----------//
@@ -265,10 +269,13 @@ void loop() {
 #endif
     }
 
-    // IK Angles
+    // Feedback
     if (millis() - lastFeedback > 500) {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, lastWristYaw, lastWristRoll);
+        vicCAN.send(58, wristYawRPM, wristRollRPM); // TODO: Set CMD_ARM_RPM_FEEDBACK to 58
+        vicCAN.send(59, topLSS.getCurrent(), bottomLSS.getCurrent(), 
+                                      topLSS.getTemperature(), bottomLSS.getTemperature()); // TODO: Set CMD_LSS_FEEDBACK to 59
     }
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
@@ -339,6 +346,12 @@ void loop() {
         lastWristYaw = clamp_angle(topLSSAngle - bottomLSSAngle) / 2.0;
         lastWristRoll = (topLSSAngle + bottomLSSAngle) / (2 * LSS_GEAR_RATIO);
 
+        float topRPM = topLSS.getSpeedRPM();
+        float bottomRPM = bottomLSS.getSpeedRPM();
+
+        wristYawRPM  = (topRPM - bottomRPM) / 2.0;
+        wristRollRPM = (topRPM + bottomRPM) / (2 * LSS_GEAR_RATIO);
+
         // IK Control
         if (isWristCtrlIK) {
             float k = 1;  // Mechanical constant
@@ -378,7 +391,6 @@ void loop() {
         }
     }
 
-
     //-------------//
     //  CAN Input  //
     //-------------//
@@ -402,7 +414,6 @@ void loop() {
 
 
         // General Misc
-
         if (commandID == CMD_PING) {
             vicCAN.respond(1);  // "pong"
             Serial.println("Received ping over CAN");
@@ -648,7 +659,7 @@ void loop() {
                     bottomLSS.moveRelative(args[4].toInt());
                     Serial.print('j');
                     Serial.print(args[3].toInt());
-                    Serial.print(' ');
+                    Serial.print('k');
                     Serial.println(args[4].toInt());
                 } else if (args[2] == "ik") {
                     Serial.println("IK not implemented yet");
