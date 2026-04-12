@@ -205,7 +205,7 @@ void loop() {
     }
 
     // Safety timeout if no ctrl command for 2 seconds
-    if (millis() - lastCtrlCmd > 10000)
+    if (millis() - lastCtrlCmd > 2000)
     {
         lastCtrlCmd = millis();
         arm.stop();
