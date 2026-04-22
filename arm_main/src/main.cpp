@@ -304,10 +304,10 @@ void loop() {
 #endif
                 lastCtrlCmd = millis();
                 float speeds[4] = {0};
-                speeds[0] = canData[0] == 0 ? 0 : canData[0] / 10.0;
-                speeds[1] = canData[1] == 0 ? 0 : canData[1] / 10.0;
-                speeds[2] = canData[2] == 0 ? 0 : canData[2] / 10.0;
-                speeds[3] = canData[3] == 0 ? 0 : canData[3] / 10.0;
+                speeds[0] = canData[0] / 10.0;
+                speeds[1] = canData[1] / 10.0;
+                speeds[2] = canData[2] / 10.0;
+                speeds[3] = canData[3] / 10.0;
                 arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
             }
         }
@@ -339,7 +339,7 @@ void loop() {
                 lastCtrlCmd = millis();
                 float velocities[4] = {0};
                 for (int i = 0; i < 4; i++) {
-                    velocities[i] = canData[i] == 0 ? 0 : canData[i] / 10.0;
+                    velocities[i] = canData[i] / 10.0;
                 }
                 arm.setTargetVelocities(velocities);
             }

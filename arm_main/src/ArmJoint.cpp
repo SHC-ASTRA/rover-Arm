@@ -43,7 +43,7 @@ void ArmJoint::readREVVelocity(int rpm) {
     // Convert motor RPM to joint deg/s
     // Lowest gear ratio is 468, largest is 5000
     // Meaning, in practice, values range from 6.0 to 128.2
-    lastDegSVelocity = (float(rpm) * 6.0) / float(gearRatio);
+    lastDegSVelocity = float(rpm) * (360.0 / 6.0) / float(gearRatio);
 }
 
 double ArmJoint::pid(double pTargetAngle) {
@@ -88,7 +88,7 @@ float ArmJoint::updateIKMotion() {
         }
 
         // Convert deg/sec to motor RPM
-        motorRPM = (targetVelocity * 60.0 / 360.0) * float(gearRatio);
+        motorRPM = targetVelocity * (60.0 / 360.0) * float(gearRatio);
     }
     if (motorRPM == 0)
         return 0;
