@@ -49,8 +49,8 @@ AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 // ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio, bool setInverted);
 ArmJoint axis0(&ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
 ArmJoint axis1(&ax1_encoder, 55, -60, 90, 5000);
-ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
-ArmJoint axis3(&ax3_encoder, 7.5, -90, 110, 2500);
+ArmJoint axis2(&ax2_encoder, 245.3, -115, 115, 3750);
+ArmJoint axis3(&ax3_encoder, 322.7, -90, 110, 2500);
 ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
 AstraArm arm(joints);
@@ -194,17 +194,18 @@ void loop() {
         vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
     }
 
-    if (millis() - lastFeedback >= 100)
+    if (millis() - lastFeedback >= 250)
     {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
+        vicCAN.send(59, axis0.lastDegSVelocity * 100, axis1.lastDegSVelocity * 100, axis2.lastDegSVelocity * 100, axis3.lastDegSVelocity * 100);
 #ifdef DEBUG
         Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
 #endif
     }
 
     // Safety timeout if no ctrl command for 2 seconds
-    if (millis() - lastCtrlCmd > 10000)
+    if (millis() - lastCtrlCmd > 2000)
     {
         lastCtrlCmd = millis();
         arm.stop();
@@ -292,6 +293,9 @@ void loop() {
                     COMMS_UART.println("brake,on");
             }
         }
+
+        // Submodule-specific
+
         else if (commandID == CMD_ARM_IK_CTRL) {
             if (canData.size() == 4) {
 #ifdef ARM_DEBUG
@@ -300,10 +304,10 @@ void loop() {
 #endif
                 lastCtrlCmd = millis();
                 float speeds[4] = {0};
-                speeds[0] = canData[0] == 0 ? 0 : canData[0] / 10.0;
-                speeds[1] = canData[1] == 0 ? 0 : canData[1] / 10.0;
-                speeds[2] = canData[2] == 0 ? 0 : canData[2] / 10.0;
-                speeds[3] = canData[3] == 0 ? 0 : canData[3] / 10.0;
+                speeds[0] = canData[0] / 10.0;
+                speeds[1] = canData[1] / 10.0;
+                speeds[2] = canData[2] / 10.0;
+                speeds[3] = canData[3] / 10.0;
                 arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
             }
         }
@@ -328,6 +332,16 @@ void loop() {
                     speeds[i] = canData[i] * 0.75;
                 }
                 arm.runDuty(speeds);
+            }
+        }
+        else if (commandID == 43) {  // IK Velocity setpoint
+            if (canData.size() == 4) {
+                lastCtrlCmd = millis();
+                float velocities[4] = {0};
+                for (int i = 0; i < 4; i++) {
+                    velocities[i] = canData[i] / 10.0;
+                }
+                arm.setTargetVelocities(velocities);
             }
         }
     }
@@ -472,15 +486,22 @@ void loop() {
         std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
         parseInput(input, args);   // Separate `input` by commas and place into args vector
 
-#ifdef ARM_DEBUG
-        Serial.println("|------------------------------------------------------|");
-        Serial.print("| From Motor MCU Recieved: ");
-#endif
-        Serial.print("Motor MCU:\t");
+        Serial.print("Motor MCU: ");
         Serial.println(input);
 
         if (checkArgs(args, 4) && args[0] == "motorstatus") {
             vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(), args[4].toInt());
+        }
+
+        else if (checkArgs(args, 3) && args[0] == "motormotion") {
+            int motorId = args[1].toInt();
+            int motorPos = args[2].toInt();
+            int motorRPM = args[3].toInt();
+            vicCAN.send(58, motorId, motorPos, motorRPM);
+            if (motorId >= 1 && motorId <= 3)
+                joints[motorId]->readREVVelocity(motorRPM);
+            else if (motorId == 4)  // Axis Zero's ID is 4, not 0
+                joints[0]->readREVVelocity(motorRPM);
         }
     }
 }

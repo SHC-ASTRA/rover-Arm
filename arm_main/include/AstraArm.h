@@ -43,6 +43,7 @@ class AstraArm {
    public:
     AstraArm(ArmJoint* setJoints[]);
     void setTargetAngles(float angle0, float angle1, float angle2, float angle3);
+    void setTargetVelocities(float velocities[4]);
     void updateIKMotion();  // Functions same as updateForAcceleration()
     void runDuty(float dutyCycles[4]);
 
