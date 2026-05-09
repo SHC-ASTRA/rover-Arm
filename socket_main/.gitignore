@@ -3,7 +3,3 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-direnv/*
-.vscode/
-*.code-workspace
-.vscode/settings.json

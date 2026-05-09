@@ -22,6 +22,8 @@
         );
     in
     {
+      formatter.x86_64-linux = inputs.nixpkgs.legacyPackages.x86_64-linux.nixfmt-tree;
+
       devShells = forEachSupportedSystem (
         { pkgs, system }:
         {
@@ -30,6 +32,7 @@
               pkgs.python3
             ];
           };
+          shellHook = ''ASTRA Socket dev'';
         }
       );
     };
