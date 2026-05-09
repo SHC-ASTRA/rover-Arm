@@ -1,3 +1,4 @@
 .pio
+direnv/*
 .vscode/
 *.code-workspace
