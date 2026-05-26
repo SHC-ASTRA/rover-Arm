@@ -6,7 +6,6 @@
  */
 #pragma once
 
-
 #if !defined(ARDUINO_ESP32_S3_DEVKITC_1)
 
 //------------------------------------------------------------------------------------------------//
@@ -19,24 +18,18 @@
 #    define SPI_MISO 2
 #    define SPI_CLK 47
 
-#    define ENCODER_AXIS0_PIN 37 //32
-#    define ENCODER_AXIS1_PIN  1 //33
-#    define ENCODER_AXIS2_PIN  4 //25
-#    define ENCODER_AXIS3_PIN  7 //26
+#    define ENCODER_AXIS0_PIN 37
+#    define ENCODER_AXIS1_PIN 1
+#    define ENCODER_AXIS2_PIN 4
+#    define ENCODER_AXIS3_PIN 7
 
-#    define CAN_TX 17 //13
-#    define CAN_RX 18 //14
+#    define CAN_TX 17
+#    define CAN_RX 18
 
-#    define SPI_CAN_TX -1
-#    define SPI_CAN_RX -1
-#    define SPI_CAN_INT -1
-#    define SPI_CAN_INTO -1
-#    define SPI_CAN_INT1 -1
-
-#    define PIN_VDIV_BATT 8 //39
-#    define PIN_VDIV_12V 10 //36
-#    define PIN_VDIV_5V 6 //34
-#    define PIN_VDIV_3V3 3 //35
+#    define PIN_VDIV_BATT 8
+#    define PIN_VDIV_12V 10
+#    define PIN_VDIV_5V 6
+#    define PIN_VDIV_3V3 3
 
 #    define MOTOR_AMOUNT 4
 
