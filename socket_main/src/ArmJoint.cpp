@@ -1,14 +1,15 @@
 /**
  * @file ArmJoint.cpp
  * @author David Sharpe (ds0196@uah.edu)
- * @brief 
+ * @brief
  *
  */
 
 #include "ArmJoint.h"
 
 
-ArmJoint::ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio, bool setInverted) {
+ArmJoint::ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle,
+                   int setGearRatio, bool setInverted) {
     encoder = setEncoder;
     zeroAngle = setZeroAngle;
     gearRatio = setGearRatio;
@@ -37,8 +38,9 @@ double ArmJoint::pid(double pTargetAngle) {
     double error = clamp_angle(pTargetAngle - lastEffectiveAngle);
     if (abs(error) < PRECISION)
         return 0;  // Stop if +/- 1 degree
-    
-    error = (error / 360.0) * static_cast<double>(gearRatio);  // Convert to motor rotations from gearbox degrees
+
+    error =
+        (error / 360.0) * static_cast<double>(gearRatio);  // Convert to motor rotations from gearbox degrees
 
     integral += error * (dt / 1000.0);
     double derivative = (error - prevError) / (dt / 1000.0);
