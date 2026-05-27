@@ -146,10 +146,12 @@ void setup() {
     digitalWrite(LASER_NMOS, LOW);
 
     // Linear actuator
-    pinMode(LINAC_RIN, OUTPUT);
-    pinMode(LINAC_FIN, OUTPUT);
-    digitalWrite(LINAC_RIN, LOW);
-    digitalWrite(LINAC_FIN, LOW);
+    //pinMode(LINAC_RIN, OUTPUT);
+    //pinMode(LINAC_FIN, OUTPUT);
+    pinMode(LINAC_FRRDBACK_SOURCE, OUTPUT);
+    //digitalWrite(LINAC_RIN, LOW);
+    //digitalWrite(LINAC_FIN, HIGH);
+    digitalWrite(LINAC_FRRDBACK_SOURCE, HIGH);
 
     // End Effector motor
     pinMode(MOTOR_IN1, OUTPUT);
@@ -259,7 +261,7 @@ void loop() {
     // Motor control safety timeout
     if (millis() - lastCtrlCmd > 2000) {
         lastCtrlCmd = millis();
-        stopEverything();
+      //  stopEverything();
 #ifdef DEBUG
         Serial.println("Safety timeout");
 #endif
@@ -481,14 +483,14 @@ void loop() {
                 lastCtrlCmd = millis();
 
                 if (canData[0] == 1) {  // Extend
-                    digitalWrite(LINAC_RIN, HIGH);
-                    digitalWrite(LINAC_FIN, LOW);
+                    //digitalWrite(LINAC_RIN, HIGH);
+                    //digitalWrite(LINAC_FIN, LOW);
                 } else if (canData[0] == 0) {  // Stop
-                    digitalWrite(LINAC_RIN, LOW);
-                    digitalWrite(LINAC_FIN, LOW);
+                    //digitalWrite(LINAC_RIN, LOW);
+                    //digitalWrite(LINAC_FIN, LOW);
                 } else if (canData[0] == -1) {  // Retract
-                    digitalWrite(LINAC_RIN, LOW);
-                    digitalWrite(LINAC_FIN, HIGH);
+                    //digitalWrite(LINAC_RIN, LOW);
+                    //digitalWrite(LINAC_FIN, HIGH);
                 }
             }
         }
@@ -618,6 +620,12 @@ void loop() {
         //  Sensors  //
         //-----------//
 
+        else if (command == "linear_ac") {
+            float linac_feedback = convertADC(analogRead(LINAC_FEEDBACK_VOLT),113.9, 11390.0 );
+
+    Serial.printf("linac_feedback: %f\n", linac_feedback);
+        }
+
         //----------//
         //  Motors  //
         //----------//
@@ -625,16 +633,16 @@ void loop() {
         else if (command == "ctrl") {
             lastCtrlCmd = millis();
 
-            if (args[1] == "lin_ac") {
+            if (args[1] == "lin_ac") { // Refactor
                 if (args[2] == "1") {
-                    digitalWrite(LINAC_RIN, LOW);
-                    digitalWrite(LINAC_FIN, HIGH);
+                    //digitalWrite(LINAC_RIN, LOW);
+                    //digitalWrite(LINAC_FIN, HIGH);
                 } else if (args[2] == "0") {
-                    digitalWrite(LINAC_RIN, HIGH);
-                    digitalWrite(LINAC_FIN, HIGH);
+                    //digitalWrite(LINAC_RIN, HIGH);
+                    //digitalWrite(LINAC_FIN, HIGH);
                 } else if (args[2] == "-1") {
-                    digitalWrite(LINAC_RIN, HIGH);
-                    digitalWrite(LINAC_FIN, LOW);
+                    //digitalWrite(LINAC_RIN, HIGH);
+                    //digitalWrite(LINAC_FIN, LOW);
                 }
             }
             else if (args[1] == "lss") {
@@ -708,8 +716,8 @@ void stopEverything() {
     digitalWrite(MOTOR_IN2, LOW);
 #endif
     // Stop lin ac
-    digitalWrite(LINAC_RIN, LOW);
-    digitalWrite(LINAC_FIN, LOW);
+    //digitalWrite(LINAC_RIN, LOW);
+    //digitalWrite(LINAC_FIN, LOW);
     // Turn off laser
     digitalWrite(LASER_NMOS, LOW);
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2

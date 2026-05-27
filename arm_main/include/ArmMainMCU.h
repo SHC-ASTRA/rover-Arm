@@ -15,18 +15,18 @@
 
 #    define COMMS_UART Serial2  // UART between Main-Motor
 
-#    define ENCODER_AXIS0_PIN 32
-#    define ENCODER_AXIS1_PIN 33
-#    define ENCODER_AXIS2_PIN 25
-#    define ENCODER_AXIS3_PIN 26
+#    define ENCODER_AXIS0_PIN 37 //32
+#    define ENCODER_AXIS1_PIN  1 //33
+#    define ENCODER_AXIS2_PIN  4 //25
+#    define ENCODER_AXIS3_PIN  7 //26
 
-#    define CAN_TX 13
-#    define CAN_RX 14
+#    define CAN_TX 17 //13
+#    define CAN_RX 18 //14
 
-#    define PIN_VDIV_BATT 39
-#    define PIN_VDIV_12V 36
-#    define PIN_VDIV_5V 34
-#    define PIN_VDIV_3V3 35
+#    define PIN_VDIV_BATT 8 //39
+#    define PIN_VDIV_12V 10 //36
+#    define PIN_VDIV_5V 6 //34
+#    define PIN_VDIV_3V3 3 //35
 
 #    define MOTOR_AMOUNT 4
 

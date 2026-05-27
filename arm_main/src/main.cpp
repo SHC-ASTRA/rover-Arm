@@ -15,6 +15,7 @@
 #include <cmath>
 
 #include <SPI.h>
+#include <Adafruit_NeoPixel.h>
 #include "AS5047P.h"
 
 // Our own resources
@@ -40,20 +41,20 @@
 //---------------------//
 //  Component classes  //
 //---------------------//
-
-AS5047P ax0_encoder(ENCODER_AXIS0_PIN, SPI_BUS_SPEED); 
+//
+//AS5047P ax0_encoder(ENCODER_AXIS0_PIN, SPI_BUS_SPEED); 
 AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED); 
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED); 
 AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
-
+//
 // ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio, bool setInverted);
-ArmJoint axis0(&ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
+//ArmJoint axis0(&ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
 ArmJoint axis1(&ax1_encoder, 55, -60, 90, 5000);
-ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
-ArmJoint axis3(&ax3_encoder, 7.5, -90, 110, 2500);
-ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
-
-AstraArm arm(joints);
+//ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
+//ArmJoint axis3(&ax3_encoder, 7.5, -90, 110, 2500);
+//ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
+//
+//AstraArm arm(joints);
 
 
 //----------//
@@ -97,6 +98,11 @@ void setup()
     //--------//
     //  Pins  //
     //--------//
+    Adafruit_NeoPixel pixels(1, 48, NEO_GRB + NEO_KHZ800);
+    pixels.begin();
+    pixels.clear();
+    pixels.setPixelColor(0, 244, 30, 10);
+    pixels.show();
 
     pinMode(LED_BUILTIN, OUTPUT);
 
@@ -105,54 +111,60 @@ void setup()
     //  MCU LED  //
     //-----------//
 
-    digitalWrite(LED_BUILTIN, HIGH);
+    //digitalWrite(LED_BUILTIN, HIGH);
     delay(1000);
-    digitalWrite(LED_BUILTIN, LOW);
+    //digitalWrite(LED_BUILTIN, LOW);
 
 
     //------------------//
     //  Communications  //
     //------------------//
 
+    pinMode(ENCODER_AXIS1_PIN, OUTPUT);
+        pinMode(ENCODER_AXIS2_PIN, OUTPUT);
+    pinMode(ENCODER_AXIS3_PIN, OUTPUT);
+
+
     Serial.begin(SERIAL_BAUD);
-    COMMS_UART.begin(COMMS_UART_BAUD);
+    //COMMS_UART.begin(COMMS_UART_BAUD);
 
     if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX))
         Serial.println("CAN bus started!");
     else
         Serial.println("CAN bus failed!");
 
-    SPI.begin();
+    SPI.begin(47,2,38,ENCODER_AXIS0_PIN);
 
+    delay(3000);
 
     //-----------------//
     //  Encoder Setup  //
     //-----------------//
 
     // initialize the AS5047P sensor and hold if sensor can't be initialized.
-    if(!ax0_encoder.initSPI()) {
-        Serial.println(F("Axis0 Encoder: Failed"));
-    } else {
-        Serial.println("Axis0 Encoder: Success");
-    }
-
-    if(!ax1_encoder.initSPI()) {
-        Serial.println(F("Axis1 Encoder: Failed"));
-    } else {
-        Serial.println("Axis1 Encoder: Success");
-    }
-  
-    if(!ax2_encoder.initSPI()) {
-        Serial.println(F("Axis2 Encoder: Failed"));
-    } else {
-        Serial.println("Axis2 Encoder: Success");
-    }
-  
-    if(!ax3_encoder.initSPI()) {
-        Serial.println(F("Axis3 Encoder: Failed"));
-    } else {
-        Serial.println("Axis3 Encoder: Success");
-    }
+    //if(!ax0_encoder.initSPI()) {
+    //    Serial.println(F("Axis0 Encoder: Failed"));
+    //} else {
+    //    Serial.println("Axis0 Encoder: Success");
+    //}
+//
+    //if(!ax1_encoder.initSPI()) {
+    //    Serial.println(F("Axis1 Encoder: Failed"));
+    //} else {
+    //    Serial.println("Axis1 Encoder: Success");
+    //}
+  ////
+    //if(!ax2_encoder.initSPI()) {
+    //    Serial.println(F("Axis2 Encoder: Failed"));
+    //} else {
+    //    Serial.println("Axis2 Encoder: Success");
+    //}
+  //
+    //if(!ax3_encoder.initSPI()) {
+    //    Serial.println(F("Axis3 Encoder: Failed"));
+    //} else {
+    //    Serial.println("Axis3 Encoder: Success");
+    //}
 }
 
 
@@ -175,76 +187,99 @@ void setup()
 void loop() {
     //----------//
     //  Timers  //
+
+    Serial.print("Hi\n");
+    delay(1000);
+
+
     //----------//
-#ifdef BLINK
-    if (millis() - lastBlink > 1000) {
-        lastBlink = millis();
-        ledState = !ledState;
-        digitalWrite(LED_BUILTIN, ledState);
-    }
-#endif
+//#ifdef BLINK
+//    if (millis() - lastBlink > 1000) {
+//        lastBlink = millis();
+//        ledState = !ledState;
+//        digitalWrite(LED_BUILTIN, ledState);
+//    }
+//#endif
+    AS5047P_Types::ERROR_t errorInfo;
 
-    if (millis() - lastVoltRead > 1000) {
-        lastVoltRead = millis();
-        float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
-        float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
-        float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
-        float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 10);
+//
+   if (millis() - lastVoltRead > 1000) {
+       lastVoltRead = millis();
+       float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
+       float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
+       float v5 = convertADC(analogRead(PIN_VDIV_5V), 10, 10);
+       float v33 = convertADC(analogRead(PIN_VDIV_3V3), 10, 10);
+       Serial.println(vBatt);
+       Serial.println(v12);
+       Serial.println(v5);
+       Serial.println(v33);
+       //vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
+   }
+   Serial.println("En");
+   Serial.println(ax1_encoder.readAngleDegree(true, &errorInfo, true, true, true));
+      Serial.println(ax2_encoder.readAngleDegree(true, &errorInfo, true, true, true));
+         Serial.println(ax3_encoder.readAngleDegree(true, &errorInfo, true, true, true));
 
-        vicCAN.send(CMD_POWER_VOLTAGE, vBatt * 100, v12 * 100, v5 * 100, v33 * 100);
-    }
 
-    if (millis() - lastFeedback >= 100)
-    {
-        lastFeedback = millis();
-        vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
-#ifdef DEBUG
-        Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
-#endif
-    }
 
-    // Safety timeout if no ctrl command for 2 seconds
-    if (millis() - lastCtrlCmd > 10000)
-    {
-        lastCtrlCmd = millis();
-        arm.stop();
+//
+//   // if (millis() - lastFeedback >= 100)
+//   // {
+//   //     lastFeedback = millis();
+//   //     vicCAN.send(CMD_ARM_ENCODER_ANGLES, axis0.lastEffectiveAngle * 10, axis1.lastEffectiveAngle * 10, axis2.lastEffectiveAngle * 10, axis3.lastEffectiveAngle * 10);
+//#ifdef DEBUG
+//        Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
+//#endif
+//   // }
+//
+//    // Safety timeout if no ctrl command for 2 seconds
+//    //if (millis() - lastCtrlCmd > 10000)
+//    //{
+//    //    lastCtrlCmd = millis();
+//    //    arm.stop();
+//
+//#ifdef ARM_DEBUG
+//        Serial.println("|------------------------------------------------------|");
+//        Serial.println("|********************SAFETY TIMEOUT********************|");
+//#else
+//        //Serial.println("Safety timeout");
+//#endif
+//    //}
+//
+//    //if (millis() - lastIKUpdate > 50) {
+//    //    lastIKUpdate = millis();
+ //  arm.updateIKMotion();
+//    //}
+//
+//    //------------------//
+//    //  CAN Input  //
+//    //------------------//
+//    //
+//    //
+//    //-------------------------------------------------------//
+//    //                                                       //
+//    //      /////////          //\\          //\\      //    //
+//    //    //                  //  \\         // \\     //    //
+//    //    //                 //    \\        //  \\    //    //
+//    //    //                /////\\\\\       //   \\   //    //
+//    //    //               //        \\      //    \\  //    //
+//    //    //              //          \\     //     \\ //    //
+//    //      /////////    //            \\    //      \\//    //
+//    //                                                       //
+//    //-------------------------------------------------------//
+//
 
-#ifdef ARM_DEBUG
-        Serial.println("|------------------------------------------------------|");
-        Serial.println("|********************SAFETY TIMEOUT********************|");
-#else
-        Serial.println("Safety timeout");
-#endif
-    }
+vicCAN.relayOn();
+Serial.print("h\n");
 
-    if (millis() - lastIKUpdate > 50) {
-        lastIKUpdate = millis();
-        arm.updateIKMotion();
-    }
-
-    //------------------//
-    //  CAN Input  //
-    //------------------//
-    //
-    //
-    //-------------------------------------------------------//
-    //                                                       //
-    //      /////////          //\\          //\\      //    //
-    //    //                  //  \\         // \\     //    //
-    //    //                 //    \\        //  \\    //    //
-    //    //                /////\\\\\       //   \\   //    //
-    //    //               //        \\      //    \\  //    //
-    //    //              //          \\     //     \\ //    //
-    //      /////////    //            \\    //      \\//    //
-    //                                                       //
-    //-------------------------------------------------------//
-
-    if(vicCAN.readCan()) {
-        const uint8_t commandID = vicCAN.getCmdId();
-        static std::vector<double> canData;
-        vicCAN.parseData(canData);
-
-#ifdef DEBUG
+vicCAN.send(50, 0.0);
+      if(vicCAN.readCan()) {
+        Serial.println("CAN");
+          const uint8_t commandID = vicCAN.getCmdId();
+          static std::vector<double> canData;
+          vicCAN.parseData(canData);
+//
+//#ifdef DEBUG
         Serial.println("|------------------------------------------------------|");
         Serial.print("| Main MCU VicCAN Recieved: ");
         Serial.print(commandID);
@@ -256,7 +291,7 @@ void loop() {
             }
         }
         Serial.println();
-#endif
+//#endif
 
         // Misc
 
@@ -267,29 +302,36 @@ void loop() {
         else if (commandID == CMD_B_LED) {
             if (canData.size() == 1) {
                 if (canData[0] == 0)
-                    digitalWrite(LED_BUILTIN, false);
+                    //digitalWrite(LED_BUILTIN, false);
+                    Serial.println("Blink LED False");
                 if (canData[0] == 1)
-                    digitalWrite(LED_BUILTIN, true);
+                    //digitalWrite(LED_BUILTIN, true);
+                                        Serial.println("Blink LED true");
+
             }
         }
 
         // REV
-
         else if (commandID == CMD_REV_STOP) {
-            COMMS_UART.println("Stop");
+            //COMMS_UART.println("Stop");
+            Serial.println("Stop");
         }
         else if (commandID == CMD_REV_IDENTIFY) {
             if (canData.size() == 1) {
-                COMMS_UART.print("rev_id,");
-                COMMS_UART.println(canData[0]);
+                //COMMS_UART.print("rev_id,");
+                Serial.println("REV ID");
+                //COMMS_UART.println(canData[0]);
             }
         }
         else if (commandID == CMD_REV_IDLE_MODE) {
             if (canData.size() == 1) {
                 if (canData[0] == 0)
-                    COMMS_UART.println("brake,off");
+                    //COMMS_UART.println("brake,off");
+                    Serial.println("Brake off");
                 else if (canData[0] == 1)
-                    COMMS_UART.println("brake,on");
+                    //COMMS_UART.println("brake,on");
+                    Serial.println("Brake on");
+
             }
         }
         else if (commandID == CMD_ARM_IK_CTRL) {
@@ -299,12 +341,12 @@ void loop() {
                 Serial.println("| VicCan IK Angle cmd recieved                         |");
 #endif
                 lastCtrlCmd = millis();
-                float speeds[4] = {0};
+               float speeds[4] = {0};
                 speeds[0] = canData[0] == 0 ? 0 : canData[0] / 10.0;
                 speeds[1] = canData[1] == 0 ? 0 : canData[1] / 10.0;
                 speeds[2] = canData[2] == 0 ? 0 : canData[2] / 10.0;
                 speeds[3] = canData[3] == 0 ? 0 : canData[3] / 10.0;
-                arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
+                //arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
             }
         }
         else if (commandID == CMD_ARM_IK_TTG) {
@@ -313,7 +355,7 @@ void loop() {
                 Serial.println("|------------------------------------------------------|");
                 Serial.println("| VicCan IK Time cmd recieved                          |");
 #endif
-                arm.setTTG(canData[0]);
+                //arm.setTTG(canData[0]);
             }
         }
         else if (commandID == CMD_ARM_MANUAL) {
@@ -327,178 +369,179 @@ void loop() {
                 for (int i = 0; i < 4; i++) {
                     speeds[i] = canData[i] * 0.75;
                 }
-                arm.runDuty(speeds);
+                //arm.runDuty(speeds);
             }
-        }
-    }
-
-
-    //------------------//
-    //  UART/USB Input  //
-    //------------------//
-    //
-    //
-    //-------------------------------------------------------//
-    //                                                       //
-    //      /////////    //\\        ////    //////////      //
-    //    //             //  \\    //  //    //        //    //
-    //    //             //    \\//    //    //        //    //
-    //    //             //            //    //        //    //
-    //    //             //            //    //        //    //
-    //    //             //            //    //        //    //
-    //      /////////    //            //    //////////      //
-    //                                                       //
-    //-------------------------------------------------------//
-    if (Serial.available()) {
-        String input = Serial.readStringUntil('\n');
-
-        input.trim();                   // Remove preceding and trailing whitespace
-        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
-        parseInput(input, args);   // Separate `input` by commas and place into args vector
-        args[0].toLowerCase();          // Make command case-insensitive
-        String command = args[0];       // To make processing code more readable
-
-        String prevCommand;
-
-#ifdef ARM_DEBUG
-        Serial.println("|------------------------------------------------------|");
-        Serial.print("| Main MCU Command Recieved: ");
-        Serial.println(input);
-#endif
-        
-
-        //--------//
-        //  Misc  //
-        //--------//
-        if (command == "ping") {
-            Serial.println("pong");
-        }
-
-        else if (command == "time") {
-            Serial.println(millis());
-        }
-        // Refers to the Built In LED, not LED strip
-        else if (command == "led") {
-            if (args[1] == "on")
-                digitalWrite(LED_BUILTIN, HIGH);
-            else if (args[1] == "off")
-                digitalWrite(LED_BUILTIN, LOW);
-            else if (args[1] == "toggle") {
-                ledState = !ledState;
-                digitalWrite(LED_BUILTIN, ledState);
-            }
-        }
-
-        //-----------//
-        //  Sensors  //
-        //-----------//
-        // TODO: Need to figure out how to output encoder values
-        // TODO Need to add voltage, current and temp of the motors
-        else if (args[0] == "data") // Send data out
-        {
-
-            if(args[1] == "sendEnc") // data
-            {
-                // outputEncoders();
-
-            }
-        }
-
-        else if (args[0] == "can_relay_tovic")
-        {
-            vicCAN.relayFromSerial(args);
-#ifdef DEBUG
-            Serial.println("Got Relay Command");
-#endif
-        }
-
-        else if (args[0] == "can_relay_mode") {
-            if (args[1] == "on") {
-                vicCAN.relayOn();
-            } else if (args[1] == "off") {
-                vicCAN.relayOff();
-            }
-        }
-
-        else if (args[0] == "effangles") {
-            Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
-        }
-
-        else if (args[0] == "stop") {
-            arm.stop();
-        }
-
-        //------------//
-        //  Physical  //
-        //------------//
-
-        else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
-        {
-#ifdef ARM_DEBUG
-            Serial.println("|------------------------------------------------------|");
-            Serial.println("| Main MCU Serial ctrl cmd recieved                    |");
-#endif
-            lastCtrlCmd = millis();
-            COMMS_UART.println(input);
-        }
-
-        else if (args[0] == "IKA") // Set the target angle for IK
-        {
-#ifdef ARM_DEBUG
-            Serial.println("|------------------------------------------------------|");
-            Serial.println("| Serial IK Angle cmd recieved                         |");
-#endif
-
-            lastCtrlCmd = millis();
-        }
-
-        else if (args[0] == "IKT") // Set the speed for each controller based on the given time
-        {   
-            
-#ifdef ARM_DEBUG
-            Serial.println("|------------------------------------------------------|");
-            Serial.println("| Serial IK Time cmd recieved                          |");
-#endif
-
-            lastCtrlCmd = millis();
-        }
-    }
-
-    // Relay data from the motor controller back over USB
-    if (COMMS_UART.available())
-    {
-        String input = COMMS_UART.readStringUntil('\n');
-        input.trim();
-        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
-        parseInput(input, args);   // Separate `input` by commas and place into args vector
-
-#ifdef ARM_DEBUG
-        Serial.println("|------------------------------------------------------|");
-        Serial.print("| From Motor MCU Recieved: ");
-#endif
-        Serial.print("Motor MCU:\t");
-        Serial.println(input);
-
-        if (checkArgs(args, 4) && args[0] == "motorstatus") {
-            vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(), args[4].toInt());
         }
     }
 }
-
-
-//------------------------------------------------------------------------------------------------//
-//  Function definitions
-//------------------------------------------------------------------------------------------------//
+//
+//    //------------------//
+//    //  UART/USB Input  //
+//    //------------------//
+//    //
+//    //
+//    //-------------------------------------------------------//
+//    //                                                       //
+//    //      /////////    //\\        ////    //////////      //
+//    //    //             //  \\    //  //    //        //    //
+//    //    //             //    \\//    //    //        //    //
+//    //    //             //            //    //        //    //
+//    //    //             //            //    //        //    //
+//    //    //             //            //    //        //    //
+//    //      /////////    //            //    //////////      //
+//    //                                                       //
+//    //-------------------------------------------------------//
+//    if (Serial.available()) {
+//        String input = Serial.readStringUntil('\n');
+//
+//        input.trim();                   // Remove preceding and trailing whitespace
+//        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
+//        parseInput(input, args);   // Separate `input` by commas and place into args vector
+//        args[0].toLowerCase();          // Make command case-insensitive
+//        String command = args[0];       // To make processing code more readable
+//
+//        String prevCommand;
+//
+//#ifdef ARM_DEBUG
+//        Serial.println("|------------------------------------------------------|");
+//        Serial.print("| Main MCU Command Recieved: ");
+//        Serial.println(input);
+//#endif
+//        
+//
+//        //--------//
+//        //  Misc  //
+//        //--------//
+//        if (command == "ping") {
+//            Serial.println("pong");
+//        }
+//
+//        else if (command == "time") {
+//            Serial.println(millis());
+//        }
+//        // Refers to the Built In LED, not LED strip
+//        else if (command == "led") {
+//            if (args[1] == "on")
+//                digitalWrite(LED_BUILTIN, HIGH);
+//            else if (args[1] == "off")
+//                digitalWrite(LED_BUILTIN, LOW);
+//            else if (args[1] == "toggle") {
+//                ledState = !ledState;
+//                digitalWrite(LED_BUILTIN, ledState);
+//            }
+//        }
+//
+//        //-----------//
+//        //  Sensors  //
+//        //-----------//
+//        // TODO: Need to figure out how to output encoder values
+//        // TODO Need to add voltage, current and temp of the motors
+//        else if (args[0] == "data") // Send data out
+//        {
+//
+//            if(args[1] == "sendEnc") // data
+//            {
+//                // outputEncoders();
+//
+//            }
+//        }
+//
+//        else if (args[0] == "can_relay_tovic")
+//        {
+//            vicCAN.relayFromSerial(args);
+//#ifdef DEBUG
+//            Serial.println("Got Relay Command");
+//#endif
+//        }
+//
+//        else if (args[0] == "can_relay_mode") {
+//            if (args[1] == "on") {
+//                vicCAN.relayOn();
+//            } else if (args[1] == "off") {
+//                vicCAN.relayOff();
+//            }
+//        }
+//
+//        else if (args[0] == "effangles") {
+//            //Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEffectiveAngle, axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
+//        }
+//
+//        else if (args[0] == "stop") {
+//           // arm.stop();
+//        }
+//
+//        //------------//
+//        //  Physical  //
+//        //------------//
+//
+//        else if (args[0] == "ctrl") // manual control, equivical to a ctrl command
+//        {
+//#ifdef ARM_DEBUG
+//            Serial.println("|------------------------------------------------------|");
+//            Serial.println("| Main MCU Serial ctrl cmd recieved                    |");
+//#endif
+//            lastCtrlCmd = millis();
+//            COMMS_UART.println(input);
+//        }
+//
+//        else if (args[0] == "IKA") // Set the target angle for IK
+//        {
+//#ifdef ARM_DEBUG
+//            Serial.println("|------------------------------------------------------|");
+//            Serial.println("| Serial IK Angle cmd recieved                         |");
+//#endif
+//
+//            lastCtrlCmd = millis();
+//        }
+//
+//        else if (args[0] == "IKT") // Set the speed for each controller based on the given time
+//        {   
+//            
+//#ifdef ARM_DEBUG
+//            Serial.println("|------------------------------------------------------|");
+//            Serial.println("| Serial IK Time cmd recieved                          |");
+//#endif
+//
+//            lastCtrlCmd = millis();
+//        }
+//    }
+//
+//    // Relay data from the motor controller back over USB
+//    if (COMMS_UART.available())
+//    {
+//        String input = COMMS_UART.readStringUntil('\n');
+//        input.trim();
+//        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
+//        parseInput(input, args);   // Separate `input` by commas and place into args vector
+//
+//#ifdef ARM_DEBUG
+//        Serial.println("|------------------------------------------------------|");
+//        Serial.print("| From Motor MCU Recieved: ");
+//#endif
+//        Serial.print("Motor MCU:\t");
+//        Serial.println(input);
+//
+//        if (checkArgs(args, 4) && args[0] == "motorstatus") {
+//            vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(), args[4].toInt());
+//        }
+//    }
+//}
 //
 //
-//----------------------------------------------------//
-//                                                    //
-//    //////////    //          //      //////////    //
-//    //            //\\        //    //              //
-//    //            //  \\      //    //              //
-//    //////        //    \\    //    //              //
-//    //            //      \\  //    //              //
-//    //            //        \\//    //              //
-//    //            //          //      //////////    //
-//                                                    //
-//----------------------------------------------------//
+////------------------------------------------------------------------------------------------------//
+////  Function definitions
+////------------------------------------------------------------------------------------------------//
+////
+////
+////----------------------------------------------------//
+////                                                    //
+////    //////////    //          //      //////////    //
+////    //            //\\        //    //              //
+////    //            //  \\      //    //              //
+////    //////        //    \\    //    //              //
+////    //            //      \\  //    //              //
+////    //            //        \\//    //              //
+////    //            //          //      //////////    //
+////                                                    //
+////----------------------------------------------------//
+//
