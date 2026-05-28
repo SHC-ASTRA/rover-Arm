@@ -52,6 +52,47 @@
 
 #elif defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
 
+
+//------------------------------------------------------------------------------------------------//
+//   Feather ESP32 (URC 2026, Digit V1)
+//------------------------------------------------------------------------------------------------//
+
+// Comms
+
+#   define CAN_RX 14
+#   define CAN_TX 32
+
+// Linear actuator
+
+# define LINAC_RIN 12
+# define LINAC_FIN 13
+# define LINAC_FRRDBACK_SOURCE 27
+# define LINAC_FEEDBACK_VOLT 26
+
+// End Effector
+
+#   define MOTOR_FAULT 5
+#   define MOTOR_IN2 19
+#   define MOTOR_IN1 21
+
+#   define LASER_NMOS 25
+
+// ADC
+
+#   define PIN_VDIV_5V 34
+#   define PIN_VDIV_12V 39
+#   define PIN_VDIV_BATT 36
+
+// Misc
+
+#   define MCU_DEBUG 4
+
+// Lynxmotion Smart Servo
+
+#   define LSS_SERIAL Serial1
+
+
+#elif defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2) && defined(URC_2025)
 //------------------------------------------------------------------------------------------------//
 //   Feather ESP32 (URC 2025, Digit V1)
 //------------------------------------------------------------------------------------------------//

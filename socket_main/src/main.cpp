@@ -42,10 +42,10 @@
 
 
 // REV Motor IDs
-#define MOTOR_ID_0 0
-#define MOTOR_ID_1 1
-#define MOTOR_ID_2 2
-#define MOTOR_ID_3 3
+#define MOTOR_ID_0 1
+#define MOTOR_ID_1 2
+#define MOTOR_ID_2 3
+#define MOTOR_ID_3 4
 #define MOTOR_AMOUNT 4
 
 //---------------------//
@@ -68,14 +68,15 @@ ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
 AstraArm arm(joints);
 
+// TODO: Check for reversed motors
 
 // AstraMotors(int setMotorID, bool setInverted, int setGearBox)
-AstraMotors Motor1(MOTOR_ID_0, false);  // Front Left
-AstraMotors Motor2(MOTOR_ID_1, false);  // Back Left
-AstraMotors Motor3(MOTOR_ID_2, true);   // Front Right
-AstraMotors Motor4(MOTOR_ID_3, true);   // Back Right
+AstraMotors Motor3(MOTOR_ID_0, false);  // Axis 3
+AstraMotors Motor2(MOTOR_ID_1, true);   // Axis 2
+AstraMotors Motor1(MOTOR_ID_2, false);  // Axis 1
+AstraMotors Motor0(MOTOR_ID_3, false);  // Axis 0
 
-AstraMotors* armMotors[4] = {&Motor1, &Motor2, &Motor3, &Motor4};
+AstraMotors* armMotors[4] = {&Motor0, &Motor1, &Motor2, &Motor3};
 
 
 //----------//
@@ -86,7 +87,9 @@ uint32_t lastBlink = 0;
 bool ledState = false;
 
 const uint16_t StepPeriodUs = 2000;  // Old??
+
 Adafruit_NeoPixel pixel(1, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+uint32_t neoPixelColor;
 
 Timer EncoderFeedback;
 Timer VoltageFeedback;
@@ -103,7 +106,9 @@ void Stop();
 
 bool trigger(Timer& timer) {
     bool isTriggered = millis() - timer.lastMillis >= timer.interval;
-    timer.lastMillis = millis();
+    if (isTriggered) {
+        timer.lastMillis = millis();
+    }
     return isTriggered;
 };
 
@@ -112,8 +117,9 @@ bool spiInit(AS5047P* encoder, int8_t spi_clk, int8_t spi_miso, int8_t spi_mosi,
 void heartbeatTask(void* pvParameters) {
     while (true) {
         if (trigger(HeartBeat)) {
-            for (size_t i = 1; i <= 4; i++) {
+            for (size_t i = 0; i <= 4; i++) {
                 CAN_sendHeartbeat(i);
+                // delay(5);
             }
         }
     }
@@ -164,7 +170,7 @@ void setup() {
     CtrlCmdTimeout.interval = 2000;
     IKUpdate.interval = 50;
     HeartBeat.interval = 10;
-    Blink.interval = 1000;
+    Blink.interval = 800;
 
     //------------------//
     //  Communications  //
@@ -233,6 +239,8 @@ void setup() {
         pixel.setPixelColor(0, 1, 204, 23);
         pixel.show();
     }
+
+    neoPixelColor = pixel.getPixelColor(0);
 }
 
 
@@ -259,7 +267,8 @@ void loop() {
 #ifdef BLINK
     if (trigger(Blink)) {
         ledState = !ledState;
-        pixel.setBrightness(255 * (uint8_t)ledState);
+        pixel.setPixelColor(0, neoPixelColor * ledState);
+        pixel.show();
     }
 #endif
 
@@ -315,6 +324,19 @@ void loop() {
     //      /////////    //            \\    //      \\//    //
     //                                                       //
     //-------------------------------------------------------//
+    // Motor1.sendDuty(-40.0);
+    // Motor2.sendDuty(-40.0);
+    //
+    // Motor1.sendDuty(-40.0);
+    // Motor0.sendDuty(-40.0);
+    //
+    // delay(1000);
+    //
+    // Motor1.sendSpeed(-4.0);
+    // Motor2.sendSpeed(-4.0);
+    //
+    // Motor1.sendSpeed(-4.0);
+    // Motor0.sendSpeed(-4.0);
 
     CanFrame receivedFame;
     bool isRevCan;
@@ -336,7 +358,6 @@ void loop() {
         }
         Serial.println();
 #endif
-
         // Misc
         if (!isRevCan) {
             if (commandID == CMD_PING) {
@@ -414,6 +435,12 @@ void loop() {
                     }
                     arm.runDuty(speeds);
                 }
+#ifdef DEBUG
+                else {
+                    Serial.println("Improper CMD_ARM_MANUAL command data length");
+                    Serial.println("Perhaps this was meant for digit?");
+                }
+#endif
             }
         }
     }
@@ -477,21 +504,28 @@ void loop() {
         //-----------//
         //  Sensors  //
         //-----------//
-        // TODO: Need to figure out how to output encoder values
         // TODO Need to add voltage, current and temp of the motors
         else if (args[0] == "data")  // Send data out
         {
             if (args[1] == "sendEnc")  // data
             {
-                // outputEncoders();
+                Serial.printf("Axis0: %f\tAxis1: %f\tAxis2: %f\tAxis3: %f\n", axis0.lastEncoderAngle,
+                              axis1.lastEncoderAngle, axis2.lastEncoderAngle, axis3.lastEncoderAngle);
+            }
+        }
+
+        else if (args[0] == "motor_feedback") {
+            if (args[1] == "sendVoltage") {
+            } else if (args[1] == "sendCurrent") {
+            } else if (args[1] == "sendTemp") {
             }
         }
 
         else if (args[0] == "can_relay_tovic") {
-            vicCAN.relayFromSerial(args);
 #ifdef DEBUG
             Serial.println("Got Relay Command");
 #endif
+            vicCAN.relayFromSerial(args);
         }
 
         else if (args[0] == "can_relay_mode") {
@@ -507,8 +541,43 @@ void loop() {
                           axis1.lastEffectiveAngle, axis2.lastEffectiveAngle, axis3.lastEffectiveAngle);
         }
 
+        else if (args[0] == "motor_duty_cycle") {
+#ifdef DEBUG
+            Serial.printf("Setting Motor%c to %c duty cycle\n", &args[1], &args[2]);
+#endif
+            armMotors[args[1].toInt()]->sendDuty(args[2].toFloat());
+
+        }
+
+        else if (args[0] == "motor_speed") {
+#ifdef DEBUG
+            Serial.printf("Setting Motor1 to %f, Motor2 to %f, Motor3 to %f, Motor4 to %f,  ", &args[1],
+                          &args[2], &args[3], &args[4]);
+#endif
+            armMotors[0]->sendSpeed(args[1].toFloat());
+            armMotors[1]->sendSpeed(args[2].toFloat());
+            armMotors[2]->sendSpeed(args[3].toFloat());
+            armMotors[3]->sendSpeed(args[4].toFloat());
+        }
+
         else if (args[0] == "stop") {
             arm.stop();
+        }
+
+        else if (args[0] == "digit_linear_ac") {
+#ifdef DEBUG
+            Serial.println("|------------------------------------------------------|");
+            Serial.println("|*************Sent Digit Linear AC Command*************|");
+#endif
+            vicCAN.send(CMD_DIGIT_LINAC_CTRL, args[1].toDouble());
+        }
+
+        else if (args[0] == "digit_wrist") {
+#ifdef DEBUG
+            Serial.println("|------------------------------------------------------|");
+            Serial.println("|***************Sent Digit Wrist Command***************|");
+#endif
+            vicCAN.send(CMD_ARM_MANUAL, args[1].toFloat(), args[2].toFloat());
         }
 
         //------------//
@@ -522,14 +591,16 @@ void loop() {
             Serial.println("| Main MCU Serial ctrl cmd received                    |");
 #endif
             CtrlCmdTimeout.lastMillis = millis();
-            // COMMS_UART.println(input);
+            for (size_t i = 0; i < 4; i++) {
+                armMotors[i]->turnByDeg((args[i + 1]).toFloat());
+            }
         }
 
         else if (args[0] == "IKA")  // Set the target angle for IK
         {
 #ifdef DEBUG
             Serial.println("|------------------------------------------------------|");
-            Serial.println("| Serial IK Angle cmd recieved                         |");
+            Serial.println("| Serial IK Angle cmd received                         |");
 #endif
 
             CtrlCmdTimeout.lastMillis = millis();
@@ -539,11 +610,23 @@ void loop() {
         {
 #ifdef DEBUG
             Serial.println("|------------------------------------------------------|");
-            Serial.println("| Serial IK Time cmd recieved                          |");
+            Serial.println("| Serial IK Time cmd received                          |");
 #endif
 
             CtrlCmdTimeout.lastMillis = millis();
         }
+#ifdef DEBUG
+        else if (args[0] == "help") {
+            Serial.println(
+                "Commands: ping, time, led, data, motor_feedback, can_relay_to_vic, can_relay_mode, "
+                "motor_duty_cycle, motor_speed, stop, digit_linear_ac, digit_wrist, ctrl, IKA, IKT");
+            Serial.println(
+                "ping: Command to ping the mcu. Should respond with 'pong'\n\n time: \n\n led:  \n on - "
+                "turns the led on \n off - turns the led off \n toggle - reverses the led's current state "
+                "\n\n data: Command to print feedback data from the mcu \n sendEnc - sends encoder feedback "
+                "data");
+        }
+#endif
     }
 
     // Relay data from the motor controller back over USB
