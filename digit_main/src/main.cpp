@@ -15,16 +15,15 @@
 #include <math.h>
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-#    include <SPI.h>    // Fixes compilation issue with Adafruit BusIO
-#    include <ESP32Servo.h>
-#    include <Adafruit_SHT31.h>  // adafruit/Adafruit SHT31 Library
+#include <SPI.h> // Fixes compilation issue with Adafruit BusIO
+#include <ESP32Servo.h>
+#include <Adafruit_SHT31.h> // adafruit/Adafruit SHT31 Library
 #endif
 
 #include "AstraMisc.h"
 #include "AstraNP.h"
 #include "AstraVicCAN.h"
 #include "DigitMainMCU.h"
-
 
 //------------//
 //  Settings  //
@@ -38,9 +37,8 @@
 #define LSS_TOP_ID 1
 #define LSS_BOTTOM_ID 2
 
-#define REV_PWM_MIN 1000  // us  -1.0 duty
-#define REV_PWM_MAX 2000  // us  1.0 duty
-
+#define REV_PWM_MIN 1000 // us  -1.0 duty
+#define REV_PWM_MAX 2000 // us  1.0 duty
 
 //---------------------//
 //  Component classes  //
@@ -49,7 +47,7 @@
 LSS topLSS = LSS(LSS_TOP_ID);
 LSS bottomLSS = LSS(LSS_BOTTOM_ID);
 
-AstraNeoPixel np(PIN_NEOPIXEL);
+// AstraNeoPixel np(PIN_NEOPIXEL);
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
 
@@ -60,7 +58,6 @@ Servo neo550;
 Adafruit_SHT31 sht;
 
 #endif
-
 
 //----------//
 //  Timing  //
@@ -73,22 +70,21 @@ long lastCtrlCmd = millis();
 
 long lastFault = 0;
 
-long lastWristCtrl = 0;  // ms
+long lastWristCtrl = 0; // ms
 
-bool isWristCtrlIK = false;  // Is IK controlling wrist now?
-float wristIKYawGoal = 0;  // degrees; Goal for wristYaw from IK
+bool isWristCtrlIK = false; // Is IK controlling wrist now?
+float wristIKYawGoal = 0;   // degrees; Goal for wristYaw from IK
 float wristIKRollGoal = 0;  // degrees; Goal for wristRoll from IK
 
 float lastWristYaw = 0;  // degrees; Last known wrist yaw angle
-float lastWristRoll = 0;  // degrees; Last known wrist roll angle
+float lastWristRoll = 0; // degrees; Last known wrist roll angle
 
 int wristManYawDir = 0;  // Manual wrist yaw direction - 1, 0, -1
-int wristManRollDir = 0;  // Manual wrist roll direction - 1, 0, -1
+int wristManRollDir = 0; // Manual wrist roll direction - 1, 0, -1
 
 float wristYawRPM = 0;  // Wrist yaw rpm
 float wristRollRPM = 0;  // Wrist roll rpm
 
-long lastFeedback = 0;  // ms
 long lastVoltRead = 0;
 long lastDataSend = 0;
 long lastNP = 0;
@@ -97,15 +93,14 @@ long lastNP = 0;
 // Shake mode variables
 
 const float SHAKEOPTIONS[5] = {0.1, 0.2, 0.3, 0.4, 0.5};
-const uint32_t SHAKEINTERVAL = 250;   // Shake interval
-const uint32_t SHAKEDURATION = 2500;  // How long to shake
-uint32_t shakeStart = 0;              // millis value when shaking started
-uint32_t lastShake = 0;               // Last millis value of shake update
-bool shakeMode = false;               // Whether or not currently shaking
-int shakeDir = 1;                     // Positive or negative to shake in open or close dir
+const uint32_t SHAKEINTERVAL = 250;  // Shake interval
+const uint32_t SHAKEDURATION = 2500; // How long to shake
+uint32_t shakeStart = 0;             // millis value when shaking started
+uint32_t lastShake = 0;              // Last millis value of shake update
+bool shakeMode = false;              // Whether or not currently shaking
+int shakeDir = 1;                    // Positive or negative to shake in open or close dir
 
 #endif
-
 
 //--------------//
 //  Prototypes  //
@@ -114,7 +109,6 @@ int shakeDir = 1;                     // Positive or negative to shake in open o
 void stopEverything();
 void efCtrl(int dir);
 float clamp_angle(float angle);
-
 
 //------------------------------------------------------------------------------------------------//
 //  Setup
@@ -132,7 +126,8 @@ float clamp_angle(float angle);
 //    ////////          //        //              //
 //                                                //
 //------------------------------------------------//
-void setup() {
+void setup()
+{
     //--------//
     //  Pins  //
     //--------//
@@ -142,7 +137,7 @@ void setup() {
     delay(1000);
     digitalWrite(LED_BUILTIN, LOW);
 
-    np.writeColor(COLOR_SETUP_START);
+    // np.writeColor(COLOR_SETUP_START);
 
     // Laser
     pinMode(LASER_NMOS, OUTPUT);
@@ -151,13 +146,15 @@ void setup() {
     // Linear actuator
     pinMode(LINAC_RIN, OUTPUT);
     pinMode(LINAC_FIN, OUTPUT);
+    pinMode(LINAC_FRRDBACK_SOURCE, OUTPUT);
     digitalWrite(LINAC_RIN, LOW);
-    digitalWrite(LINAC_FIN, LOW);
+    digitalWrite(LINAC_FIN, HIGH);
+    digitalWrite(LINAC_FRRDBACK_SOURCE, HIGH);
 
     // End Effector motor
     pinMode(MOTOR_IN1, OUTPUT);
     pinMode(MOTOR_IN2, OUTPUT);
-    pinMode(MOTOR_FAULT, INPUT);  // External pull-up resistor
+    pinMode(MOTOR_FAULT, INPUT); // External pull-up resistor
 #ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     analogWrite(MOTOR_IN1, 0);
     analogWrite(MOTOR_IN2, 0);
@@ -166,36 +163,39 @@ void setup() {
     digitalWrite(MOTOR_IN2, LOW);
 #endif
 
-
     //------------------//
     //  Communications  //
     //------------------//
 
     Serial.begin(SERIAL_BAUD);
 
-    if(ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX)) {
+    if (ESP32Can.begin(TWAI_SPEED_1000KBPS, CAN_TX, CAN_RX))
+    {
         Serial.println("CAN bus started!");
-    } else {
-        Serial.println("CAN bus failed!");
-        np.addStatus(STATUS_CAN_NOCONN, 30);
     }
-
+    else
+    {
+        Serial.println("CAN bus failed!");
+        // np.addStatus(STATUS_CAN_NOCONN, 30);
+    }
 
     //-----------//
     //  Sensors  //
     //-----------//
 
-    np.writeColor(COLOR_SETUP_SENSORS);
+    // np.writeColor(COLOR_SETUP_SENSORS);
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-    if (sht.begin(0x44)) {  // HUM/Temp
+    if (sht.begin(0x44))
+    { // HUM/Temp
         Serial.println("SHT31 initialized.");
-    } else {
+    }
+    else
+    {
         Serial.println("Couldn't find SHT31!");
         // np.addStatus(STATUS_SHT_NOCONN, 30);
     }
 #endif
-
 
     //--------------------//
     //  Misc. Components  //
@@ -224,12 +224,11 @@ void setup() {
     neo550.attach(SPARK_PWM, REV_PWM_MIN, REV_PWM_MAX);
 #endif
 
-    np.writeColor(COLOR_SETUP_DONE);
+    // np.writeColor(COLOR_SETUP_DONE);
 
     // Wait for LSS reboot
     delay(2000);
 }
-
 
 //------------------------------------------------------------------------------------------------//
 //  Loop
@@ -253,24 +252,27 @@ void loop() {
     //  Timers  //
     //----------//
 #ifdef BLINK
-    if (millis() - lastBlink > 1000) {
+    if (millis() - lastBlink > 1000)
+    {
         lastBlink = millis();
         ledState = !ledState;
-        digitalWrite(LED_BUILTIN, ledState);
+        // digitalWrite(LED_BUILTIN, ledState);
     }
 #endif
 
     // Motor control safety timeout
-    if (millis() - lastCtrlCmd > 2000) {
+    if (millis() - lastCtrlCmd > 2000)
+    {
         lastCtrlCmd = millis();
-        stopEverything();
+        //  stopEverything();
 #ifdef DEBUG
         Serial.println("Safety timeout");
 #endif
     }
 
-    // Feedback
-    if (millis() - lastFeedback > 500) {
+    // IK Angles
+    if (millis() - lastFeedback > 500)
+    {
         lastFeedback = millis();
         vicCAN.send(CMD_ARM_ENCODER_ANGLES, lastWristYaw, lastWristRoll);
         vicCAN.send(58, wristYawRPM, wristRollRPM); // TODO: Set CMD_ARM_RPM_FEEDBACK to 58
@@ -280,34 +282,38 @@ void loop() {
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
     // Telemetry
-    if (millis() - lastDataSend >= 1000) {
+    if (millis() - lastDataSend >= 1000)
+    {
         lastDataSend = millis();
 
         float temp, hum;
         sht.readBoth(&temp, &hum);
-        
+
         vicCAN.send(57, temp, hum);
     }
 
     // SCABBARD Shake
-    if (shakeMode && millis() - lastShake >= SHAKEINTERVAL) {
+    if (shakeMode && millis() - lastShake >= SHAKEINTERVAL)
+    {
         lastShake = millis();
 
-        unsigned ind = rand() % 5;  // 0-4 inclusive, seeded by command
+        unsigned ind = rand() % 5; // 0-4 inclusive, seeded by command
 
         if (ind < 0 || ind > 4)
             ind = 0;
         neo550.write(0);
 
         // Don't shake for longer than SHAKEDURATION
-        if (shakeStart + SHAKEDURATION <= millis()) {
+        if (shakeStart + SHAKEDURATION <= millis())
+        {
             shakeMode = false;
             neo550.write(0);
         }
     }
 #endif
 
-    if (millis() - lastVoltRead > 1000) {
+    if (millis() - lastVoltRead > 1000)
+    {
         lastVoltRead = millis();
         float vBatt = convertADC(analogRead(PIN_VDIV_BATT), 10, 2.21);
         float v12 = convertADC(analogRead(PIN_VDIV_12V), 10, 3.32);
@@ -317,27 +323,30 @@ void loop() {
     }
 
     // EF motor controller fault monitor
-    if (millis() - lastFault > 1000 && digitalRead(MOTOR_FAULT) == LOW) {
-        lastFault = millis();  // Always check unless there has been a fault <1 second ago
+    if (millis() - lastFault > 1000 && digitalRead(MOTOR_FAULT) == LOW)
+    {
+        lastFault = millis(); // Always check unless there has been a fault <1 second ago
         Serial.println("EF Motor fault detected: over-current, over-temperature, or under-voltage.");
         // Stop EF motor
 #ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-        analogWrite(MOTOR_IN1, 0);
-        analogWrite(MOTOR_IN2, 0);
+        // analogWrite(MOTOR_IN1, 0);
+        // analogWrite(MOTOR_IN2, 0);
 #else
-        digitalWrite(MOTOR_IN1, LOW);
-        digitalWrite(MOTOR_IN2, LOW);
+        // digitalWrite(MOTOR_IN1, LOW);
+        // digitalWrite(MOTOR_IN2, LOW);
 #endif
     }
 
     // Neopixel status update
-    if (millis() - lastNP > 50) {
+    if (millis() - lastNP > 50)
+    {
         lastNP = millis();
-        np.update();
+        // np.update();
     }
 
     // Wrist Control
-    if (millis() - lastWristCtrl > 100) {
+    if (millis() - lastWristCtrl > 100)
+    {
         lastWristCtrl = millis();
 
         float topLSSAngle = topLSS.getPosition() / 10.0;
@@ -353,8 +362,9 @@ void loop() {
         wristRollRPM = (topRPM + bottomRPM) / (2 * LSS_GEAR_RATIO);
 
         // IK Control
-        if (isWristCtrlIK) {
-            float k = 1;  // Mechanical constant
+        if (isWristCtrlIK)
+        {
+            float k = 1; // Mechanical constant
 
             float topTarget = LSS_GEAR_RATIO * wristIKRollGoal + (wristIKYawGoal / (2 * k));
             float bottomTarget = LSS_GEAR_RATIO * wristIKRollGoal - (wristIKYawGoal / (2 * k));
@@ -363,11 +373,15 @@ void loop() {
             bottomLSS.move(bottomTarget * 10.0);
         }
         // Manual Control
-        else {
-            if (wristManRollDir == 0 && wristManYawDir == 0) {  // Stop as soon as possible if requested
+        else
+        {
+            if (wristManRollDir == 0 && wristManYawDir == 0)
+            { // Stop as soon as possible if requested
                 topLSS.wheel(0);
                 bottomLSS.wheel(0);
-            } else {  // Still moving
+            }
+            else
+            { // Still moving
                 // Yaw bounds check
                 if ((lastWristYaw < -70 && wristManYawDir == 1) || (lastWristYaw > 70 && wristManYawDir == -1))
                     wristManYawDir = 0;
@@ -394,7 +408,8 @@ void loop() {
     //-------------//
     //  CAN Input  //
     //-------------//
-    if(vicCAN.readCan()) {
+    if (vicCAN.readCan())
+    {
         const uint8_t commandID = vicCAN.getCmdId();
         static std::vector<double> canData;
         vicCAN.parseData(canData);
@@ -404,22 +419,27 @@ void loop() {
         Serial.print("VicCAN: ");
         Serial.print(commandID);
         Serial.print("; ");
-        if (canData.size() > 0) {
-            for (const double& data : canData) {
+        if (canData.size() > 0)
+        {
+            for (const double &data : canData)
+            {
                 Serial.print(data);
                 Serial.print(", ");
             }
         }
         Serial.println();
 
-
         // General Misc
-        if (commandID == CMD_PING) {
-            vicCAN.respond(1);  // "pong"
+
+        if (commandID == CMD_PING)
+        {
+            vicCAN.respond(1); // "pong"
             Serial.println("Received ping over CAN");
         }
-        else if (commandID == CMD_B_LED) {
-            if (canData.size() == 1) {
+        else if (commandID == CMD_B_LED)
+        {
+            if (canData.size() == 1)
+            {
                 if (canData[0] == 0)
                     digitalWrite(LED_BUILTIN, false);
                 if (canData[0] == 1)
@@ -430,13 +450,16 @@ void loop() {
         // REV
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-        else if (commandID == CMD_REV_STOP) {
+        else if (commandID == CMD_REV_STOP)
+        {
             lastCtrlCmd = millis();
             neo550.write((REV_PWM_MIN + REV_PWM_MAX) / 2);
         }
 
-        else if (commandID == CMD_REV_SET_DUTY) {
-            if (canData.size() == 1) {
+        else if (commandID == CMD_REV_SET_DUTY)
+        {
+            if (canData.size() == 1)
+            {
                 lastCtrlCmd = millis();
                 int value = map_d(canData[0] / 100.0, -1.0, 1.0, REV_PWM_MIN, REV_PWM_MAX);
                 neo550.writeMicroseconds(value);
@@ -449,27 +472,34 @@ void loop() {
         // Misc Physical Control
 
 #ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-        else if (commandID == CMD_DCMOTOR_CTRL) {
-            if (canData.size() == 1) {
+        else if (commandID == CMD_DCMOTOR_CTRL)
+        {
+            if (canData.size() == 1)
+            {
                 lastCtrlCmd = millis();
                 efCtrl(canData[0]);
             }
         }
 #endif
 
-        else if (commandID == CMD_LASER_CTRL) {
-            if (canData.size() == 1) {
+        else if (commandID == CMD_LASER_CTRL)
+        {
+            if (canData.size() == 1)
+            {
                 lastCtrlCmd = millis();
-                if (canData[0] == 0) {
+                if (canData[0] == 0)
+                {
                     digitalWrite(LASER_NMOS, LOW);
                 }
-                else if (canData[0] == 1) {
+                else if (canData[0] == 1)
+                {
                     digitalWrite(LASER_NMOS, HIGH);
                 }
             }
         }
 
-        else if (commandID == CMD_LSS_RESET) {
+        else if (commandID == CMD_LSS_RESET)
+        {
             lastCtrlCmd = millis();
             topLSS.reset();
             bottomLSS.reset();
@@ -477,8 +507,10 @@ void loop() {
 
         // Submodule Specific
 
-        else if (commandID == CMD_ARM_IK_CTRL) {
-            if (canData.size() == 2) {
+        else if (commandID == CMD_ARM_IK_CTRL)
+        {
+            if (canData.size() == 2)
+            {
                 lastCtrlCmd = millis();
 
                 wristIKYawGoal = canData[0];
@@ -487,33 +519,43 @@ void loop() {
             }
         }
 
-        else if (commandID == CMD_DIGIT_LINAC_CTRL) {
-            if (canData.size() == 1) {
+        else if (commandID == CMD_DIGIT_LINAC_CTRL)
+        {
+            if (canData.size() == 1)
+            {
                 lastCtrlCmd = millis();
 
-                if (canData[0] == 1) {  // Extend
+                if (canData[0] == 1)
+                { // Extend
                     digitalWrite(LINAC_RIN, HIGH);
                     digitalWrite(LINAC_FIN, LOW);
-                } else if (canData[0] == 0) {  // Stop
+                }
+                else if (canData[0] == 0)
+                { // Stop
                     digitalWrite(LINAC_RIN, LOW);
                     digitalWrite(LINAC_FIN, LOW);
-                } else if (canData[0] == -1) {  // Retract
+                }
+                else if (canData[0] == -1)
+                { // Retract
                     digitalWrite(LINAC_RIN, LOW);
                     digitalWrite(LINAC_FIN, HIGH);
                 }
             }
         }
 
-        else if (commandID == CMD_ARM_MANUAL) {  // Wrist roll + yaw
-            if (canData.size() == 2) {
+        else if (commandID == CMD_ARM_MANUAL)
+        { // Wrist roll + yaw
+            if (canData.size() == 2)
+            {
                 lastCtrlCmd = millis();
 
                 // Set globals for 10 Hz controller timer to take care of
                 wristManYawDir = canData[0];
                 wristManRollDir = canData[1];
-                isWristCtrlIK = false;  // Disable IK if doing manual control
+                isWristCtrlIK = false; // Disable IK if doing manual control
 
-                if (wristManYawDir == 0 && wristManRollDir == 0) {
+                if (wristManYawDir == 0 && wristManRollDir == 0)
+                {
                     topLSS.wheel(0);
                     bottomLSS.wheel(0);
                 }
@@ -521,8 +563,10 @@ void loop() {
         }
 
 #ifndef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-        else if (commandID == CMD_FAERIE_SKAKE) {  // TODO: fix typo :(
-            if (canData.size() == 1 && (canData[0] == -1 || canData[0] == 1)) {
+        else if (commandID == CMD_FAERIE_SKAKE)
+        { // TODO: fix typo :(
+            if (canData.size() == 1 && (canData[0] == -1 || canData[0] == 1))
+            {
                 lastCtrlCmd = millis();
 
                 shakeMode = true;
@@ -535,19 +579,26 @@ void loop() {
             }
         }
 
-        else if (commandID == 42) {  // New linear actuator for FAERIE
-            if (canData.size() == 1) {
+        else if (commandID == 42)
+        { // New linear actuator for FAERIE
+            if (canData.size() == 1)
+            {
                 lastCtrlCmd = millis();
                 // Defeat the evil analogWrite()
                 // pinMode(MOTOR_IN1, OUTPUT);
                 // pinMode(MOTOR_IN2, OUTPUT);
-                if (canData[0] <= -1) {
+                if (canData[0] <= -1)
+                {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, HIGH);
-                } else if (canData[0] == 0) {
+                }
+                else if (canData[0] == 0)
+                {
                     digitalWrite(MOTOR_IN1, LOW);
                     digitalWrite(MOTOR_IN2, LOW);
-                } else if (canData[0] >= 1) {
+                }
+                else if (canData[0] >= 1)
+                {
                     digitalWrite(MOTOR_IN1, HIGH);
                     digitalWrite(MOTOR_IN2, LOW);
                 }
@@ -555,7 +606,6 @@ void loop() {
         }
 #endif
     }
-
 
     //------------------//
     //  UART/USB Input  //
@@ -573,17 +623,19 @@ void loop() {
     //      /////////    //            //    //////////      //
     //                                                       //
     //-------------------------------------------------------//
-    if (Serial.available()) {
+    if (Serial.available())
+    {
         String input = Serial.readStringUntil('\n');
 
-        input.trim();                   // Remove preceding and trailing whitespace
-        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
-        parseInput(input, args);   // Separate `input` by commas and place into args vector
-        args[0].toLowerCase();          // Make command case-insensitive
-        String command = args[0];       // To make processing code more readable
+        input.trim();                  // Remove preceding and trailing whitespace
+        std::vector<String> args = {}; // Initialize empty vector to hold separated arguments
+        parseInput(input, args);       // Separate `input` by commas and place into args vector
+        args[0].toLowerCase();         // Make command case-insensitive
+        String command = args[0];      // To make processing code more readable
 
         // Backwards compatibility with last year's ROS2 code
-        if (command == "digit") {
+        if (command == "digit")
+        {
             // Remove first argument, which is "digit" to tell socket teensy to redirect to digit
             args.erase(args.begin());
             // Our command is not "digit", but what comes after it
@@ -594,33 +646,42 @@ void loop() {
         //--------//
         //  Misc  //
         //--------//
-        /**/ if (command == "ping") {
+        /**/ if (command == "ping")
+        {
             Serial.println("pong");
         }
 
-        else if (command == "time") {
+        else if (command == "time")
+        {
             Serial.println(millis());
         }
 
-        else if (command == "led") {
+        else if (command == "led")
+        {
             if (args[1] == "on")
                 digitalWrite(LED_BUILTIN, HIGH);
             else if (args[1] == "off")
                 digitalWrite(LED_BUILTIN, LOW);
-            else if (args[1] == "toggle") {
+            else if (args[1] == "toggle")
+            {
                 ledState = !ledState;
                 digitalWrite(LED_BUILTIN, ledState);
             }
         }
 
-        else if (command == "can_relay_tovic") {
+        else if (command == "can_relay_tovic")
+        {
             vicCAN.relayFromSerial(args);
         }
 
-        else if (args[0] == "can_relay_mode") {
-            if (args[1] == "on") {
+        else if (args[0] == "can_relay_mode")
+        {
+            if (args[1] == "on")
+            {
                 vicCAN.relayOn();
-            } else if (args[1] == "off") {
+            }
+            else if (args[1] == "off")
+            {
                 vicCAN.relayOff();
             }
         }
@@ -629,30 +690,48 @@ void loop() {
         //  Sensors  //
         //-----------//
 
+        else if (command == "linear_ac")
+        {
+            float linac_feedback = convertADC(analogRead(LINAC_FEEDBACK_VOLT), 113.9, 11390.0);
+
+            Serial.printf("linac_feedback: %f\n", linac_feedback);
+        }
+
         //----------//
         //  Motors  //
         //----------//
 
-        else if (command == "ctrl") {
+        else if (command == "ctrl")
+        {
             lastCtrlCmd = millis();
 
-            if (args[1] == "lin_ac") {
-                if (args[2] == "1") {
+            if (args[1] == "lin_ac")
+            { // Refactor
+                if (args[2] == "1")
+                {
                     digitalWrite(LINAC_RIN, LOW);
                     digitalWrite(LINAC_FIN, HIGH);
-                } else if (args[2] == "0") {
+                }
+                else if (args[2] == "0")
+                {
                     digitalWrite(LINAC_RIN, HIGH);
                     digitalWrite(LINAC_FIN, HIGH);
-                } else if (args[2] == "-1") {
+                }
+                else if (args[2] == "-1")
+                {
                     digitalWrite(LINAC_RIN, HIGH);
                     digitalWrite(LINAC_FIN, LOW);
                 }
             }
-            else if (args[1] == "lss") {
-                if (args[2] == "reset") {
+            else if (args[1] == "lss")
+            {
+                if (args[2] == "reset")
+                {
                     topLSS.reset();
                     bottomLSS.reset();
-                } else if (args[2] == "manual") {
+                }
+                else if (args[2] == "manual")
+                {
                     // For now, just take raw speeds for the two servos.
                     // We can figure out the math for yaw/rotation at the same time later...
                     topLSS.moveRelative(args[3].toInt());
@@ -661,31 +740,37 @@ void loop() {
                     Serial.print(args[3].toInt());
                     Serial.print('k');
                     Serial.println(args[4].toInt());
-                } else if (args[2] == "ik") {
+                }
+                else if (args[2] == "ik")
+                {
                     Serial.println("IK not implemented yet");
                     // Will need math to figure out what yaw angle the wrist is currently at and how
                     // to get to the target angle with the differential
                 }
             }
-            else if (args[1] == "ef") {
+            else if (args[1] == "ef")
+            {
                 efCtrl(args[2].toInt());
             }
-
-        } else if (command == "laser") {
-            if (args[1] == "0") {
+        }
+        else if (command == "laser")
+        {
+            if (args[1] == "0")
+            {
                 digitalWrite(LASER_NMOS, LOW);
-            } else if (args[1] == "1") {
+            }
+            else if (args[1] == "1")
+            {
                 digitalWrite(LASER_NMOS, HIGH);
             }
-
         }
 
-        else if (command == "stop") {
+        else if (command == "stop")
+        {
             stopEverything();
         }
     }
 }
-
 
 //------------------------------------------------------------------------------------------------//
 //  Function definitions
@@ -704,7 +789,8 @@ void loop() {
 //                                                    //
 //----------------------------------------------------//
 
-void stopEverything() {
+void stopEverything()
+{
     // Stop LSS
     topLSS.wheel(0);
     bottomLSS.wheel(0);
@@ -729,20 +815,27 @@ void stopEverything() {
 #endif
 }
 
-void efCtrl(int dir) {
-    if (dir == 1) {  // Close
+void efCtrl(int dir)
+{
+    if (dir == 1)
+    { // Close
         analogWrite(MOTOR_IN1, 225);
         analogWrite(MOTOR_IN2, 0);
-    } else if (dir == 0) {  // Stop 
+    }
+    else if (dir == 0)
+    { // Stop
         analogWrite(MOTOR_IN1, 50);
         analogWrite(MOTOR_IN2, 50);
-    } else if (dir == -1) {  // Open
+    }
+    else if (dir == -1)
+    { // Open
         analogWrite(MOTOR_IN1, 0);
         analogWrite(MOTOR_IN2, 225);
     }
 }
 
-float clamp_angle(float angle) {
+float clamp_angle(float angle)
+{
     // https://stackoverflow.com/a/11498248
     angle = fmod(angle + 180, 360);
     if (angle < 0)
