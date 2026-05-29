@@ -117,12 +117,13 @@ inline bool trigger(Timer& timer) {
 };
 
 void heartbeatTask(void* pvParameters) {
+    static uint8_t heartBeatNum = 1;
     while (true) {
-        if (trigger(HeartBeat)) {
-            for (size_t i = 1; i <= 4; i++) {
-                CAN_sendHeartbeat(i);
-            }
-        }
+        CAN_sendHeartbeat(heartBeatNum);
+        heartBeatNum++;
+        if (heartBeatNum > 4)
+            heartBeatNum = 1;
+        delay(5);
     }
 }
 
@@ -309,9 +310,9 @@ void loop() {
 #endif
     }
 
-    // if (trigger(IKUpdate)) {
-    //     arm.updateIKMotion();
-    // }
+    if (trigger(IKUpdate)) {
+        arm.updateIKMotion();
+    }
 
     // Motor status debug printout
     if (trigger(revFeedback)) {
