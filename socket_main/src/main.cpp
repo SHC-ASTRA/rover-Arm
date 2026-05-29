@@ -42,10 +42,10 @@
 
 
 // REV Motor IDs
-#define MOTOR_ID_0 4
-#define MOTOR_ID_1 1
-#define MOTOR_ID_2 2
-#define MOTOR_ID_3 3
+#define MOTOR_ID_0 1
+#define MOTOR_ID_1 2
+#define MOTOR_ID_2 3
+#define MOTOR_ID_3 4
 #define MOTOR_AMOUNT 4
 
 //---------------------//
@@ -53,9 +53,9 @@
 //---------------------//
 
 AS5047P ax0_encoder(ENCODER_AXIS0_PIN, SPI_BUS_SPEED);
-AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED);
+AS5047P ax1_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED);
-AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
+AS5047P ax3_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED);
 
 // TODO: Check for reversed motors
 
@@ -71,9 +71,9 @@ AstraMotors* armMotors[4] = {&Motor0, &Motor1, &Motor2, &Motor3};
 // bool setInverted);
 // TODO: Update for new arm
 ArmJoint axis0(&Motor0, &ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
-ArmJoint axis1(&Motor1, &ax1_encoder, 55, -60, 90, 5000);
-ArmJoint axis2(&Motor2, &ax2_encoder, 352, -115, 115, 3750);
-ArmJoint axis3(&Motor3, &ax3_encoder, 7.5, -90, 110, 2500);
+ArmJoint axis1(&Motor1, &ax1_encoder, 55, 120, -30, 5000);
+ArmJoint axis2(&Motor2, &ax2_encoder, 260, 80, -15, 316.8);
+ArmJoint axis3(&Motor3, &ax3_encoder, 329, 90, -90, 2500);
 ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
 AstraArm arm(joints);
@@ -123,10 +123,14 @@ void heartbeatTask(void* pvParameters) {
         heartBeatNum++;
         if (heartBeatNum > 4)
             heartBeatNum = 1;
-        delay(5);
+        delay(4);
     }
 }
 
+// Smaller range than needed!!! Add more as tested with mech team
+// ax1 -30 +125
+// ax2 -20 +80  
+// ax3 -80 +80  
 //------------------------------------------------------------------------------------------------//
 //  Setup
 //------------------------------------------------------------------------------------------------//
@@ -204,7 +208,7 @@ void setup() {
         Serial.println("Axis0 Encoder: Success");
     }
 
-    if (!spiInit(&ax1_encoder, SPI_CLK, SPI_MISO, SPI_MOSI, ENCODER_AXIS1_PIN)) {
+    if (!spiInit(&ax1_encoder, SPI_CLK, SPI_MISO, SPI_MOSI, ENCODER_AXIS3_PIN)) {
         Serial.println(F("Axis1 Encoder: Failed"));
         encoderFailure = true;
     } else {
@@ -218,7 +222,7 @@ void setup() {
         Serial.println("Axis2 Encoder: Success");
     }
 
-    if (!spiInit(&ax3_encoder, SPI_CLK, SPI_MISO, SPI_MOSI, ENCODER_AXIS3_PIN)) {
+    if (!spiInit(&ax3_encoder, SPI_CLK, SPI_MISO, SPI_MOSI, ENCODER_AXIS1_PIN)) {
         Serial.println(F("Axis3 Encoder: Failed"));
         encoderFailure = true;
     } else {
@@ -245,6 +249,15 @@ void setup() {
     }
 
     neoPixelColor = pixel.getPixelColor(0);
+
+    for (size_t i = 0; i < 4; i++) {
+        Serial.printf("Axis %d Min Angle:%f, Max Angle:%f\n", i, joints[i]->minAngle, joints[i]->maxAngle);
+        Serial.printf("Zero angle: %f\n", joints[i]->zeroAngle);
+
+        Serial.printf("Current angle: %f\n", (joints[i]->lastEffectiveAngle));
+    }
+
+    delay(2000);
 }
 
 
@@ -316,7 +329,6 @@ void loop() {
 
     // Motor status debug printout
     if (trigger(revFeedback)) {
-
         for (int i = 0; i < 4; i++) {
             if (millis() - armMotors[i]->status1.timestamp < 500) {
                 vicCAN.send(CMD_REVMOTOR_FEEDBACK, armMotors[i]->getID(),
@@ -411,12 +423,12 @@ void loop() {
             }
 #endif
 
-        // } else if (commandID == CMD_REV_SET_DUTY) {
-        //     if (canData.size() == 4) {
-        //         for (int i = 0; i < 4; i++) {
-        //             armMotors[i]->sendDuty(canData[i]);
-        //         }
-        //     }
+            // } else if (commandID == CMD_REV_SET_DUTY) {
+            //     if (canData.size() == 4) {
+            //         for (int i = 0; i < 4; i++) {
+            //             armMotors[i]->sendDuty(canData[i]);
+            //         }
+            //     }
 
         } else if (commandID == CMD_ARM_IK_CTRL) {
             if (canData.size() == 4) {
