@@ -6,10 +6,12 @@
  */
 
 #include "ArmJoint.h"
+#include "AstraMotors.h"
 
 
-ArmJoint::ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle,
+ArmJoint::ArmJoint(AstraMotors* setMotor, AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle,
                    int setGearRatio, bool setInverted) {
+    motor = setMotor;
     encoder = setEncoder;
     zeroAngle = setZeroAngle;
     gearRatio = setGearRatio;

@@ -42,10 +42,10 @@
 
 
 // REV Motor IDs
-#define MOTOR_ID_0 1
-#define MOTOR_ID_1 2
-#define MOTOR_ID_2 3
-#define MOTOR_ID_3 4
+#define MOTOR_ID_0 4
+#define MOTOR_ID_1 1
+#define MOTOR_ID_2 2
+#define MOTOR_ID_3 3
 #define MOTOR_AMOUNT 4
 
 //---------------------//
@@ -57,26 +57,26 @@ AS5047P ax1_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED);
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED);
 AS5047P ax3_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 
-// ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio,
-// bool setInverted);
-// TODO: Update for new arm
-ArmJoint axis0(&ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
-ArmJoint axis1(&ax1_encoder, 55, -60, 90, 5000);
-ArmJoint axis2(&ax2_encoder, 352, -115, 115, 3750);
-ArmJoint axis3(&ax3_encoder, 7.5, -90, 110, 2500);
-ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
-
-AstraArm arm(joints);
-
 // TODO: Check for reversed motors
 
 // AstraMotors(int setMotorID, bool setInverted, int setGearBox)
-AstraMotors Motor3(MOTOR_ID_0, false);  // Axis 3
-AstraMotors Motor2(MOTOR_ID_1, true);   // Axis 2
-AstraMotors Motor1(MOTOR_ID_2, false);  // Axis 1
-AstraMotors Motor0(MOTOR_ID_3, false);  // Axis 0
+AstraMotors Motor0(MOTOR_ID_0, false);  // Axis 0
+AstraMotors Motor1(MOTOR_ID_1, true);   // Axis 1
+AstraMotors Motor2(MOTOR_ID_2, false);  // Axis 2
+AstraMotors Motor3(MOTOR_ID_3, false);  // Axis 3
 
 AstraMotors* armMotors[4] = {&Motor0, &Motor1, &Motor2, &Motor3};
+
+// ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio,
+// bool setInverted);
+// TODO: Update for new arm
+ArmJoint axis0(&Motor0, &ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
+ArmJoint axis1(&Motor1, &ax1_encoder, 55, -60, 90, 5000);
+ArmJoint axis2(&Motor2, &ax2_encoder, 352, -115, 115, 3750);
+ArmJoint axis3(&Motor3, &ax3_encoder, 7.5, -90, 110, 2500);
+ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
+
+AstraArm arm(joints);
 
 
 //----------//
@@ -97,6 +97,7 @@ Timer CtrlCmdTimeout;
 Timer IKUpdate;
 Timer HeartBeat;
 Timer Blink;
+Timer revFeedback;
 
 //--------------//
 //  Prototypes  //
@@ -104,7 +105,9 @@ Timer Blink;
 
 void Stop();
 
-bool trigger(Timer& timer) {
+bool spiInit(AS5047P* encoder, int8_t spi_clk, int8_t spi_miso, int8_t spi_mosi, int8_t spi_cs);
+
+inline bool trigger(Timer& timer) {
     bool isTriggered = millis() - timer.lastMillis >= timer.interval;
     if (isTriggered) {
         timer.lastMillis = millis();
@@ -112,14 +115,11 @@ bool trigger(Timer& timer) {
     return isTriggered;
 };
 
-bool spiInit(AS5047P* encoder, int8_t spi_clk, int8_t spi_miso, int8_t spi_mosi, int8_t spi_cs);
-
 void heartbeatTask(void* pvParameters) {
     while (true) {
         if (trigger(HeartBeat)) {
-            for (size_t i = 0; i <= 4; i++) {
+            for (size_t i = 1; i <= 4; i++) {
                 CAN_sendHeartbeat(i);
-                // delay(5);
             }
         }
     }
@@ -171,6 +171,7 @@ void setup() {
     IKUpdate.interval = 50;
     HeartBeat.interval = 10;
     Blink.interval = 800;
+    revFeedback.interval = 500;
 
     //------------------//
     //  Communications  //
@@ -294,7 +295,9 @@ void loop() {
 
     // Safety timeout if no ctrl command for 2 seconds
     if (trigger(CtrlCmdTimeout)) {
-        // arm.stop();
+#ifndef DEBUG
+        arm.stop();
+#endif
 
 #ifdef DEBUG
         Serial.println("|------------------------------------------------------|");
@@ -304,8 +307,25 @@ void loop() {
 #endif
     }
 
-    if (trigger(IKUpdate)) {
-        arm.updateIKMotion();
+    // if (trigger(IKUpdate)) {
+    //     arm.updateIKMotion();
+    // }
+
+    // Motor status debug printout
+    if (trigger(revFeedback)) {
+
+        for (int i = 0; i < 4; i++) {
+            if (millis() - armMotors[i]->status1.timestamp < 500) {
+                vicCAN.send(CMD_REVMOTOR_FEEDBACK, armMotors[i]->getID(),
+                            armMotors[i]->status1.motorTemperature * 10,
+                            armMotors[i]->status1.busVoltage * 10, armMotors[i]->status1.outputCurrent * 10);
+            }
+            if (millis() - armMotors[i]->status1.timestamp < 500 &&
+                millis() - armMotors[i]->status2.timestamp < 500) {
+                vicCAN.send(58, armMotors[i]->getID(), armMotors[i]->status2.sensorPosition,
+                            armMotors[i]->status1.sensorVelocity);
+            }
+        }
     }
 
     //------------------//
@@ -324,23 +344,10 @@ void loop() {
     //      /////////    //            \\    //      \\//    //
     //                                                       //
     //-------------------------------------------------------//
-    // Motor1.sendDuty(-40.0);
-    // Motor2.sendDuty(-40.0);
-    //
-    // Motor1.sendDuty(-40.0);
-    // Motor0.sendDuty(-40.0);
-    //
-    // delay(1000);
-    //
-    // Motor1.sendSpeed(-4.0);
-    // Motor2.sendSpeed(-4.0);
-    //
-    // Motor1.sendSpeed(-4.0);
-    // Motor0.sendSpeed(-4.0);
 
-    CanFrame receivedFame;
+    CanFrame receivedFrame;
     bool isRevCan;
-    if (vicCAN.readCan(&isRevCan, &receivedFame)) {
+    if (vicCAN.readCan(&isRevCan, &receivedFrame)) {
         const uint8_t commandID = vicCAN.getCmdId();
         static std::vector<double> canData;
         vicCAN.parseData(canData);
@@ -359,89 +366,123 @@ void loop() {
         Serial.println();
 #endif
         // Misc
-        if (!isRevCan) {
-            if (commandID == CMD_PING) {
-                vicCAN.respond(1);  // "pong"
-                Serial.println("Received ping over CAN");
-            } else if (commandID == CMD_B_LED) {
-                if (canData.size() == 1) {
-                    if (canData[0] == 0)
-                        pixel.setBrightness(0);
-                    if (canData[0] == 1)
-                        pixel.setBrightness(255);
-                }
+        if (commandID == CMD_PING) {
+            vicCAN.respond(1);  // "pong"
+            Serial.println("Received ping over CAN");
+        } else if (commandID == CMD_B_LED) {
+            if (canData.size() == 1) {
+                if (canData[0] == 0)
+                    pixel.setBrightness(0);
+                if (canData[0] == 1)
+                    pixel.setBrightness(255);
             }
-        } else {
-            // REV
-            if (commandID == CMD_REV_STOP) {
-                Stop();
-            } else if (commandID == CMD_REV_IDENTIFY) {
-                if (canData.size() == 1) {
-                    CAN_identifySparkMax(canData[0]);
+        }
+
+        // REV
+        else if (commandID == CMD_REV_STOP) {
+            Stop();
+
+        } else if (commandID == CMD_REV_IDENTIFY) {
+            if (canData.size() == 1) {
+                CAN_identifySparkMax(canData[0]);
 #ifdef DEBUG
 
-                    Serial.print("rev_id,");
-                    Serial.println(canData[0]);
-#endif
-                }
-            } else if (commandID == CMD_REV_IDLE_MODE) {
-                if (canData.size() == 1 && (canData[0] == 0 || canData[0] == 1)) {
-                    for (uint8_t i = 0; i < 4; i++) {
-                        armMotors[i]->setBrake(canData[0]);
-                    }
-                }
-#ifdef DEBUG
-                else {
-                    Serial.println("Improper REV Idle Mode Command Received");
-                }
-#endif
-            } else if (commandID == CMD_ARM_IK_CTRL) {
-                if (canData.size() == 4) {
-#ifdef DEBUG
-                    Serial.println("|------------------------------------------------------|");
-                    Serial.println("|***********VicCan IK Angle cmd received***************|");
-#endif
-                    CtrlCmdTimeout.lastMillis = millis();
-                    float speeds[4] = {0};
-                    speeds[0] = canData[0] == 0 ? 0 : canData[0] / 10.0;
-                    speeds[1] = canData[1] == 0 ? 0 : canData[1] / 10.0;
-                    speeds[2] = canData[2] == 0 ? 0 : canData[2] / 10.0;
-                    speeds[3] = canData[3] == 0 ? 0 : canData[3] / 10.0;
-                    arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
-                }
-#ifdef DEBUG
-                else {
-                    Serial.println("Incorrect IK Control Command Received");
-                }
-#endif
-            } else if (commandID == CMD_ARM_IK_TTG) {
-                if (canData.size() == 1) {
-#ifdef DEBUG
-                    Serial.println("|------------------------------------------------------|");
-                    Serial.println("|VicCan IK Time cmd received                          |");
-#endif
-                    arm.setTTG(canData[0]);
-                }
-            } else if (commandID == CMD_ARM_MANUAL) {
-                if (canData.size() == 4) {
-#ifdef DEBUG
-                    Serial.println("|------------------------------------------------------|");
-                    Serial.println("|**********VicCan ctrl cmd received********************|");
-#endif
-                    CtrlCmdTimeout.lastMillis = millis();
-                    float speeds[4] = {0};
-                    for (int i = 0; i < 4; i++) {
-                        speeds[i] = canData[i] * 0.75;
-                    }
-                    arm.runDuty(speeds);
-                }
-#ifdef DEBUG
-                else {
-                    Serial.println("Improper CMD_ARM_MANUAL command data length");
-                    Serial.println("Perhaps this was meant for digit?");
-                }
+                Serial.print("rev_id,");
+                Serial.println(canData[0]);
 #endif
             }
+
+        } else if (commandID == CMD_REV_IDLE_MODE) {
+            if (canData.size() == 1 && (canData[0] == 0 || canData[0] == 1)) {
+                for (uint8_t i = 0; i < 4; i++) {
+                    armMotors[i]->setBrake(canData[0]);
+                }
+            }
+#ifdef DEBUG
+            else {
+                Serial.println("Improper REV Idle Mode Command Received");
+            }
+#endif
+
+        // } else if (commandID == CMD_REV_SET_DUTY) {
+        //     if (canData.size() == 4) {
+        //         for (int i = 0; i < 4; i++) {
+        //             armMotors[i]->sendDuty(canData[i]);
+        //         }
+        //     }
+
+        } else if (commandID == CMD_ARM_IK_CTRL) {
+            if (canData.size() == 4) {
+#ifdef DEBUG
+                Serial.println("|------------------------------------------------------|");
+                Serial.println("|***********VicCan IK Angle cmd received***************|");
+#endif
+                CtrlCmdTimeout.lastMillis = millis();
+                float speeds[4] = {0};
+                speeds[0] = canData[0] == 0 ? 0 : canData[0] / 10.0;
+                speeds[1] = canData[1] == 0 ? 0 : canData[1] / 10.0;
+                speeds[2] = canData[2] == 0 ? 0 : canData[2] / 10.0;
+                speeds[3] = canData[3] == 0 ? 0 : canData[3] / 10.0;
+                arm.setTargetAngles(speeds[0], speeds[1], speeds[2], speeds[3]);
+            }
+#ifdef DEBUG
+            else {
+                Serial.println("Incorrect IK Control Command Received");
+            }
+#endif
+        } else if (commandID == CMD_ARM_IK_TTG) {
+            if (canData.size() == 1) {
+#ifdef DEBUG
+                Serial.println("|------------------------------------------------------|");
+                Serial.println("|VicCan IK Time cmd received                          |");
+#endif
+                arm.setTTG(canData[0]);
+            }
+
+        } else if (commandID == CMD_ARM_MANUAL) {
+            if (canData.size() == 4) {
+#ifdef DEBUG
+                Serial.println("|------------------------------------------------------|");
+                Serial.println("|**********VicCan ctrl cmd received********************|");
+#endif
+                CtrlCmdTimeout.lastMillis = millis();
+                float speeds[4] = {0};
+                for (int i = 0; i < 4; i++) {
+                    speeds[i] = canData[i] * 0.75;
+                }
+                arm.runDuty(speeds);
+            }
+#ifdef DEBUG
+            else {
+                Serial.println("Improper CMD_ARM_MANUAL command data length");
+                Serial.println("Perhaps this was meant for digit?");
+            }
+#endif
+        }
+    } else if (isRevCan) {                                         // REV Motor Feedback
+        uint8_t deviceId = receivedFrame.identifier & 0x3F;        // [5:0]
+        uint32_t apiId = (receivedFrame.identifier >> 6) & 0x3FF;  // [15:6]
+
+#if defined(DEBUG_STATUS)
+        // Log message if it seems interesting
+        if (apiId == 0x99 || (apiId & 0x60) == 0x60 || (apiId & 0x300) == 0x300) {
+            printREVFrame(receivedFrame);
+        }
+#endif
+
+        if ((apiId & 0x60) == 0x60) {  // Periodic status
+            for (int i = 0; i < 4; i++) {
+                if (deviceId == armMotors[i]->getID()) {
+                    armMotors[i]->parseStatus(apiId, receivedFrame.data);
+                    break;
+                }
+            }
+        } else if ((apiId & 0x300) == 0x300) {  // Parameter
+            printREVParameter(receivedFrame);
+#ifdef DEBUG
+            Serial.print("From frame: ");
+            printREVFrame(receivedFrame);
+#endif
         }
     }
 
@@ -628,27 +669,6 @@ void loop() {
         }
 #endif
     }
-
-    // Relay data from the motor controller back over USB
-    //    if (COMMS_UART.available())
-    //    {
-    //        String input = COMMS_UART.readStringUntil('\n');
-    //        input.trim();
-    //        std::vector<String> args = {};  // Initialize empty vector to hold separated arguments
-    //        parseInput(input, args);   // Separate `input` by commas and place into args vector
-    //
-    // #ifdef ARM_DEBUG
-    //        Serial.println("|------------------------------------------------------|");
-    //        Serial.print("| From Motor MCU Recieved: ");
-    // #endif
-    //        Serial.print("Motor MCU:\t");
-    //        Serial.println(input);
-    //
-    //        if (checkArgs(args, 4) && args[0] == "motorstatus") {
-    //            vicCAN.send(CMD_REVMOTOR_FEEDBACK, args[1].toInt(), args[2].toInt(), args[3].toInt(),
-    //            args[4].toInt());
-    //        }
-    //    }
 }
 
 

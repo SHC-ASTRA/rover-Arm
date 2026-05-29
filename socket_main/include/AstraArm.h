@@ -9,12 +9,6 @@
 #include <Arduino.h>
 #include "ArmJoint.h"
 
-#ifdef ARDUINO_ADAFRUIT_FEATHER_ESP32_V2
-#   define MOTORSERIAL Serial1
-#else
-#   define MOTORSERIAL Serial2
-#endif
-
 
 class AstraArm {
    private:
@@ -25,7 +19,13 @@ class AstraArm {
     int timeToGoal;
 
     inline void sendDuty(float duty0, float duty1, float duty2, float duty3) {
-        MOTORSERIAL.printf("ctrl,%f,%f,%f,%f\n", duty0, duty1, duty2, duty3);
+#ifdef DEBUG
+        Serial.printf("Sending duty cycles: %f, %f, %f, %f\n", duty0, duty1, duty2, duty3);
+#endif
+        joints[0]->motor->sendDuty(duty0);
+        joints[1]->motor->sendDuty(duty1);
+        joints[2]->motor->sendDuty(duty2);
+        joints[3]->motor->sendDuty(duty3);
         lastDutyCycles[0] = duty0;
         lastDutyCycles[1] = duty1;
         lastDutyCycles[2] = duty2;
@@ -33,7 +33,13 @@ class AstraArm {
     }
     inline void sendVelocity(float vel0, float vel1, float vel2, float vel3) {
         vel0 = 0;
-        MOTORSERIAL.printf("sendvelocity,%f,%f,%f,%f\n", vel0, vel1, vel2, vel3);
+#ifdef DEBUG
+        Serial.printf("Sending velocity commands: %f, %f, %f, %f\n", vel0, vel1, vel2, vel3);
+#endif
+        joints[0]->motor->sendSpeed(vel0);
+        joints[1]->motor->sendSpeed(vel1);
+        joints[2]->motor->sendSpeed(vel2);
+        joints[3]->motor->sendSpeed(vel3);
         lastVelocities[0] = vel0;
         lastVelocities[1] = vel1;
         lastVelocities[2] = vel2;
