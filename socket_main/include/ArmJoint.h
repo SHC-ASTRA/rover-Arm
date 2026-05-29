@@ -8,6 +8,7 @@
 
 #include <Arduino.h>
 #include <AS5047P.h>
+#include "AstraMotors.h"
 
 const float PRECISION = 1;
 
@@ -47,11 +48,12 @@ class ArmJoint {
     int gearRatio;
     bool inverted;
     AS5047P* encoder;
+    AstraMotors* motor;
 
     double pid(double pTargetAngle);
 
     public:
-    ArmJoint(AS5047P* setEncoder, float setZeroAngle = 0, float setMinAngle = -115, float setMaxAngle = 115, int setGearRatio = 1, bool setInverted = false);
+    ArmJoint(AstraMotors* setMotor, AS5047P* setEncoder, float setZeroAngle = 0, float setMinAngle = -115, float setMaxAngle = 115, int setGearRatio = 1, bool setInverted = false);
     float readAngle();
     float updateIKMotion();
 
@@ -65,6 +67,9 @@ class ArmJoint {
     }
 
     inline bool checkDuty(float duty) {
+#ifdef DEBUG
+        return true;  // TODO: remove
+#endif
         if (inverted)
             duty = -duty;
         if ((lastEffectiveAngle > maxAngle && duty < 0)
