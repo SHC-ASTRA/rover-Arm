@@ -98,6 +98,7 @@ Timer IKUpdate;
 Timer HeartBeat;
 Timer Blink;
 Timer revFeedback;
+Timer versionFeedback;
 
 //--------------//
 //  Prototypes  //
@@ -172,6 +173,7 @@ void setup() {
     HeartBeat.interval = 10;
     Blink.interval = 800;
     revFeedback.interval = 500;
+    versionFeedback.interval = 5000;
 
     //------------------//
     //  Communications  //
@@ -326,6 +328,10 @@ void loop() {
                             armMotors[i]->status1.sensorVelocity);
             }
         }
+    }
+
+    if (trigger(versionFeedback)) {
+        SEND_VERSION_INFO
     }
 
     //------------------//
