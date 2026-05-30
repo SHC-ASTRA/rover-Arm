@@ -85,6 +85,8 @@ int wristManRollDir = 0; // Manual wrist roll direction - 1, 0, -1
 float wristYawRPM = 0;  // Wrist yaw rpm
 float wristRollRPM = 0;  // Wrist roll rpm
 
+
+long lastFeedback = 0; // ms
 long lastVoltRead = 0;
 long lastDataSend = 0;
 long lastNP = 0;
@@ -246,8 +248,8 @@ void setup()
 //    /////////      //////////    //              //
 //                                                 //
 //-------------------------------------------------//
-void loop() {
-    
+void loop()
+{
     //----------//
     //  Timers  //
     //----------//
