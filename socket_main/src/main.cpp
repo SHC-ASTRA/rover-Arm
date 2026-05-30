@@ -90,6 +90,10 @@ const uint16_t StepPeriodUs = 2000;  // Old??
 
 Adafruit_NeoPixel pixel(1, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 uint32_t neoPixelColor;
+uint32_t neoCtrlTimeoutColor = pixel.Color(123,242,214);
+uint32_t neoNoCanColor = pixel.Color(5, 30, 252);
+uint32_t neoEncoderLossColor = pixel.Color(174, 5, 252);
+uint32_t neoSystemGoodColor = pixel.Color(1, 204, 23);
 
 Timer EncoderFeedback;
 Timer VoltageFeedback;
@@ -176,7 +180,7 @@ void setup() {
     CtrlCmdTimeout.interval = 2000;
     IKUpdate.interval = 50;
     HeartBeat.interval = 10;
-    Blink.interval = 800;
+    Blink.interval = 700;
     revFeedback.interval = 500;
     versionFeedback.interval = 5000;
 
@@ -203,7 +207,7 @@ void setup() {
     // initialize the AS5047P sensor and hold if sensor can't be initialized.
     if (!spiInit(&ax0_encoder, SPI_CLK, SPI_MISO, SPI_MOSI, ENCODER_AXIS0_PIN)) {
         Serial.println(F("Axis0 Encoder: Failed"));
-        encoderFailure = true;
+        //encoderFailure = true;
     } else {
         Serial.println("Axis0 Encoder: Success");
     }
@@ -233,18 +237,20 @@ void setup() {
 
     delay(1000);
 
+    
+
     Serial.println("Setup is complete");
     if (encoderFailure) {
-        pixel.setPixelColor(0, 174, 5, 252);  // Purple
+        pixel.setPixelColor(0, neoEncoderLossColor);  // Purple
         pixel.show();
-    } else if (encoderFailure && canFailure) {
-        pixel.setPixelColor(0, 1, 230, 30);  // Orange
+    } else if (true) {
+        pixel.setPixelColor(0, 0xFFFFFF );  // White
         pixel.show();
     } else if (canFailure) {
-        pixel.setPixelColor(0, 5, 30, 252);  // Blue
+        pixel.setPixelColor(0, neoNoCanColor);  // Blue
         pixel.show();
     } else {
-        pixel.setPixelColor(0, 1, 204, 23);
+        pixel.setPixelColor(0, neoSystemGoodColor);
         pixel.show();
     }
 
@@ -311,6 +317,8 @@ void loop() {
 
     // Safety timeout if no ctrl command for 2 seconds
     if (trigger(CtrlCmdTimeout)) {
+        neoPixelColor = (neoSystemGoodColor * ledState) + (neoCtrlTimeoutColor* !ledState);
+        pixel.setPixelColor(0, neoPixelColor);
 #ifndef DEBUG
         arm.stop();
 #endif
