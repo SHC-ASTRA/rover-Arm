@@ -58,8 +58,6 @@ AS5047P ax1_encoder(ENCODER_AXIS3_PIN, SPI_BUS_SPEED);
 AS5047P ax2_encoder(ENCODER_AXIS2_PIN, SPI_BUS_SPEED);
 AS5047P ax3_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED);
 
-// TODO: Check for reversed motors
-
 // AstraMotors(int setMotorID, bool setInverted, int setGearBox)
 AstraMotors Motor0(MOTOR_ID_0, false);  // Axis 0
 AstraMotors Motor1(MOTOR_ID_1, false);   // Axis 1
@@ -70,7 +68,6 @@ AstraMotors* armMotors[4] = {&Motor0, &Motor1, &Motor2, &Motor3};
 
 // ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio,
 // bool setInverted);
-// TODO: Update for new arm
 ArmJoint axis0(&Motor0, &ax0_encoder, 179, -179, 135, 468 * 2 * MOTOR_V11_RATIO);  // 64:1 gearbox, 16:117 small and big gears
 ArmJoint axis1(&Motor1, &ax1_encoder, 55, -90, 90, 5000);
 ArmJoint axis2(&Motor2, &ax2_encoder, 260, -150, 15, 316.8 * 4 * MOTOR_V11_RATIO, true);
@@ -476,7 +473,7 @@ void loop() {
                 CtrlCmdTimeout.lastMillis = millis();
                 float speeds[4] = {0};
                 for (int i = 0; i < 4; i++) {
-                    speeds[i] = canData[i] * 0.75;
+                    speeds[i] = (canData[i] * 0.75) / 100.0;  // Now sent as [-100, 100]
                 }
                 arm.runDuty(speeds);
             }

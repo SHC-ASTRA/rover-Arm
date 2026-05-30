@@ -34,8 +34,8 @@
 
 #define LSS_GEAR_RATIO 2
 
-#define LSS_TOP_ID 1
-#define LSS_BOTTOM_ID 2
+#define LSS_TOP_ID 2
+#define LSS_BOTTOM_ID 1
 
 #define REV_PWM_MIN 1000 // us  -1.0 duty
 #define REV_PWM_MAX 2000 // us  1.0 duty
@@ -79,8 +79,8 @@ float wristIKRollGoal = 0;  // degrees; Goal for wristRoll from IK
 float lastWristYaw = 0;  // degrees; Last known wrist yaw angle
 float lastWristRoll = 0; // degrees; Last known wrist roll angle
 
-int wristManYawDir = 0;  // Manual wrist yaw direction - 1, 0, -1
-int wristManRollDir = 0; // Manual wrist roll direction - 1, 0, -1
+float wristManYawDir = 0;  // Manual wrist yaw direction - [1, 0, -1]
+float wristManRollDir = 0; // Manual wrist roll direction - [1, 0, -1]
 
 float wristYawRPM = 0;  // Wrist yaw rpm
 float wristRollRPM = 0;  // Wrist roll rpm
@@ -385,20 +385,20 @@ void loop()
             else
             { // Still moving
                 // Yaw bounds check
-                if ((lastWristYaw < -70 && wristManYawDir == 1) || (lastWristYaw > 70 && wristManYawDir == -1))
+                if ((lastWristYaw < -70 && wristManYawDir > 0) || (lastWristYaw > 70 && wristManYawDir < 0))
                     wristManYawDir = 0;
 
                 int yawSpeed = 0;
                 int rollSpeed = 0;
 
-                if (wristManYawDir == 1)
+                if (wristManYawDir > 0)
                     yawSpeed = -20;
-                else if (wristManYawDir == -1)
+                else if (wristManYawDir < 0)
                     yawSpeed = 20;
 
-                if (wristManRollDir == 1)
+                if (wristManRollDir > 0)
                     rollSpeed = -20 * LSS_GEAR_RATIO;
-                else if (wristManRollDir == -1)
+                else if (wristManRollDir < 0)
                     rollSpeed = 20 * LSS_GEAR_RATIO;
 
                 topLSS.wheel(yawSpeed + rollSpeed);
@@ -479,7 +479,7 @@ void loop()
             if (canData.size() == 1)
             {
                 lastCtrlCmd = millis();
-                efCtrl(canData[0]);
+                efCtrl(canData[0] / 100.0);
             }
         }
 #endif
@@ -527,7 +527,7 @@ void loop()
             {
                 lastCtrlCmd = millis();
 
-                if (canData[0] == 1)
+                if (canData[0] == 100)
                 { // Extend
                     digitalWrite(LINAC_RIN, HIGH);
                     digitalWrite(LINAC_FIN, LOW);
@@ -537,7 +537,7 @@ void loop()
                     digitalWrite(LINAC_RIN, LOW);
                     digitalWrite(LINAC_FIN, LOW);
                 }
-                else if (canData[0] == -1)
+                else if (canData[0] == -100)
                 { // Retract
                     digitalWrite(LINAC_RIN, LOW);
                     digitalWrite(LINAC_FIN, HIGH);
@@ -552,8 +552,8 @@ void loop()
                 lastCtrlCmd = millis();
 
                 // Set globals for 10 Hz controller timer to take care of
-                wristManYawDir = canData[0];
-                wristManRollDir = canData[1];
+                wristManYawDir = canData[0] / 100.0;
+                wristManRollDir = canData[1] / 100.0;
                 isWristCtrlIK = false; // Disable IK if doing manual control
 
                 if (wristManYawDir == 0 && wristManRollDir == 0)
@@ -770,6 +770,32 @@ void loop()
         else if (command == "stop")
         {
             stopEverything();
+        }
+
+        else if (command == "zero") {
+            topLSS.setOriginOffset(0, LSS_SetConfig);
+            bottomLSS.setOriginOffset(0, LSS_SetConfig);
+        }
+
+        else if (command == "test") {
+            Serial.println(" Before:");
+            Serial.printf("Top LSS angle: %f\n", topLSS.getPosition() / 10.0);
+            Serial.printf("Bottom LSS angle: %f\n", bottomLSS.getPosition() / 10.0);
+
+            Serial.printf("Top LSS origin offset: %f\n", topLSS.getOriginOffset() / 10.0);
+            Serial.printf("Bottom LSS origin offset: %f\n", bottomLSS.getOriginOffset() / 10.0);
+
+            delay(2000);
+            topLSS.setOriginOffset(topLSS.getPosition(), LSS_SetConfig);
+            bottomLSS.setOriginOffset(bottomLSS.getPosition(), LSS_SetConfig);
+            delay(2000);
+
+            Serial.println(" After:");
+            Serial.printf("Top LSS angle: %f\n", topLSS.getPosition() / 10.0);
+            Serial.printf("Bottom LSS angle: %f\n", bottomLSS.getPosition() / 10.0);
+
+            Serial.printf("Top LSS origin offset: %f\n", topLSS.getOriginOffset() / 10.0);
+            Serial.printf("Bottom LSS origin offset: %f\n", bottomLSS.getOriginOffset() / 10.0);
         }
     }
 }
