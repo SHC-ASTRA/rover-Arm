@@ -40,13 +40,14 @@
 #define SPI_BUS_SPEED 1000000  // 1MHz
 
 
-
 // REV Motor IDs
-#define MOTOR_ID_0 1
-#define MOTOR_ID_1 2
-#define MOTOR_ID_2 3
-#define MOTOR_ID_3 4
+#define MOTOR_ID_0 4
+#define MOTOR_ID_1 1
+#define MOTOR_ID_2 2
+#define MOTOR_ID_3 3
 #define MOTOR_AMOUNT 4
+
+constexpr float MOTOR_V11_RATIO = 1.938;  // Ratio between the Kv's of the 550 vs the V1.1
 
 //---------------------//
 //  Component classes  //
@@ -61,7 +62,7 @@ AS5047P ax3_encoder(ENCODER_AXIS1_PIN, SPI_BUS_SPEED);
 
 // AstraMotors(int setMotorID, bool setInverted, int setGearBox)
 AstraMotors Motor0(MOTOR_ID_0, false);  // Axis 0
-AstraMotors Motor1(MOTOR_ID_1, true);   // Axis 1
+AstraMotors Motor1(MOTOR_ID_1, false);   // Axis 1
 AstraMotors Motor2(MOTOR_ID_2, false);  // Axis 2
 AstraMotors Motor3(MOTOR_ID_3, false);  // Axis 3
 
@@ -70,10 +71,10 @@ AstraMotors* armMotors[4] = {&Motor0, &Motor1, &Motor2, &Motor3};
 // ArmJoint(AS5047P* setEncoder, float setZeroAngle, float setMinAngle, float setMaxAngle, int setGearRatio,
 // bool setInverted);
 // TODO: Update for new arm
-ArmJoint axis0(&Motor0, &ax0_encoder, 179, -179, 135, 468);  // 64:1 gearbox, 16:117 small and big gears
-ArmJoint axis1(&Motor1, &ax1_encoder, 55, 120, -30, 5000);
-ArmJoint axis2(&Motor2, &ax2_encoder, 260, 80, -15, 316.8);
-ArmJoint axis3(&Motor3, &ax3_encoder, 329, 90, -90, 2500);
+ArmJoint axis0(&Motor0, &ax0_encoder, 179, -179, 135, 468 * 2 * MOTOR_V11_RATIO);  // 64:1 gearbox, 16:117 small and big gears
+ArmJoint axis1(&Motor1, &ax1_encoder, 55, -90, 90, 5000);
+ArmJoint axis2(&Motor2, &ax2_encoder, 260, -150, 15, 316.8 * 4 * MOTOR_V11_RATIO, true);
+ArmJoint axis3(&Motor3, &ax3_encoder, 329, -100, 100, 2500);
 ArmJoint* joints[] = {&axis0, &axis1, &axis2, &axis3};
 
 AstraArm arm(joints);
